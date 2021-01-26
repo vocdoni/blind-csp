@@ -21,7 +21,8 @@ type CAAPIauthFunc = func(r *http.Request, msg *CAAPI) bool
 type CAAPI struct {
 	ID             string          `json:"request"`
 	Method         string          `json:"method,omitempty"`
-	PubKeys        []string        `json:"pubKeys,omitempty"`
+	AuthData       []string        `json:"authData,omitempty"` // reserved for the auth handler
+	Reply          string          `json:"reply,omitempty"`    // reserved for the auth handler
 	Timestamp      int32           `json:"timestamp"`
 	OK             bool            `json:"ok"`
 	Error          string          `json:"error,omitempty"`
