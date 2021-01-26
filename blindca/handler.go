@@ -6,8 +6,8 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-func (ca *CAAPI) SignatureReq(rr router.RouterRequest) {
-	msg := &CAAPI{}
+func (ca *BlindCA) SignatureReq(rr router.RouterRequest) {
+	msg := &BlindCA{}
 
 	httpctx, ok := rr.MessageContext.(*mhttp.HttpContext)
 	if !ok {
@@ -16,9 +16,9 @@ func (ca *CAAPI) SignatureReq(rr router.RouterRequest) {
 	if ca.AuthCallback == nil {
 		log.Fatal("no auth callback defined")
 	}
-	if ca.AuthCallback(httpctx.Request, rr.Message.(*CAAPI)) {
+	if ca.AuthCallback(httpctx.Request, rr.Message.(*BlindCA)) {
 		msg.OK = true
-		msg.SignerR, msg.SignerQ = ca.NewRequestKey()
+		msg.SignerR = ca.NewRequestKey()
 	} else {
 		msg.SetError("unauthorized")
 	}
@@ -27,10 +27,10 @@ func (ca *CAAPI) SignatureReq(rr router.RouterRequest) {
 	}
 }
 
-func (ca *CAAPI) Signature(rr router.RouterRequest) {
+func (ca *BlindCA) Signature(rr router.RouterRequest) {
 	var err error
-	msg := &CAAPI{}
-	req := rr.Message.(*CAAPI)
+	msg := &BlindCA{}
+	req := rr.Message.(*BlindCA)
 	if len(req.MessageHash) == 0 {
 		msg.SetError("messageHash is empty")
 		rr.Send(router.BuildReply(msg, rr))

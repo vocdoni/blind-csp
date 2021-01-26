@@ -81,9 +81,11 @@ func main() {
 	ipHandler := handlers.IpaddrHandler{}
 
 	// Create the blind CA API and assign the IP auth function
-	ca := new(blindca.CAAPI)
+	ca := new(blindca.BlindCA)
 	_, priv := signer.HexString()
-	ca.Init(priv, ipHandler.Auth)
+	if err := ca.Init(priv, ipHandler.Auth); err != nil {
+		log.Fatal(err)
+	}
 
 	// Create a new router and attach the transports
 	r := router.NewRouter(listener, transportMap, &signer, ca.NewAPI)

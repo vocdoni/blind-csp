@@ -13,7 +13,7 @@ type IpaddrHandler struct {
 	kv sync.Map
 }
 
-func (ih *IpaddrHandler) Auth(r *http.Request, ca *blindca.CAAPI) bool {
+func (ih *IpaddrHandler) Auth(r *http.Request, ca *blindca.BlindCA) bool {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {
