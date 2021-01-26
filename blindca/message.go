@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	blind "github.com/arnaucube/go-blindsecp256k1"
+	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
 )
 
@@ -18,16 +19,16 @@ type CAAPIauthFunc = func(r *http.Request, msg *CAAPI) bool
 
 // CAAPI blind signature API service for certification authorities.
 type CAAPI struct {
-	ID             string       `json:"request"`
-	Method         string       `json:"method,omitempty"`
-	PubKeys        []string     `json:"pubKeys,omitempty"`
-	Timestamp      int32        `json:"timestamp"`
-	OK             bool         `json:"ok"`
-	Error          string       `json:"error,omitempty"`
-	SignerR        *blind.Point `json:"signerR,omitempty"`
-	SignerQ        *blind.Point `json:"signerQ,omitempty"`
-	MessageHash    []byte       `json:"messageHash,omitempty"`
-	BlindSignature []byte       `json:"blindSignature,omitempty"`
+	ID             string          `json:"request"`
+	Method         string          `json:"method,omitempty"`
+	PubKeys        []string        `json:"pubKeys,omitempty"`
+	Timestamp      int32           `json:"timestamp"`
+	OK             bool            `json:"ok"`
+	Error          string          `json:"error,omitempty"`
+	SignerR        *blind.Point    `json:"signerR,omitempty"`
+	SignerQ        *blind.Point    `json:"signerQ,omitempty"`
+	MessageHash    router.HexBytes `json:"messageHash,omitempty"`
+	BlindSignature router.HexBytes `json:"blindSignature,omitempty"`
 
 	AuthCallback CAAPIauthFunc    `json:"-"`
 	sk           blind.PrivateKey `json:"-"`

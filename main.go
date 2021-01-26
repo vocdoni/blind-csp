@@ -27,10 +27,10 @@ func main() {
 		panic("cannot get user home directory")
 	}
 	privKey := flag.String("key", "", "private CA key as hexadecimal string (leave empty for autogenerate)")
-	datadir := flag.String("dataDir", home+"/.vocdoni-ca", "datadir for storing database files and config")
-	domain := flag.String("domain", "", "domain name for tls")
-	loglevel := flag.String("loglevel", "info", "log level")
-	port := flag.Int("port", 443, "port to listen")
+	datadir := flag.String("dataDir", home+"/.vocdoni-ca", "datadir for storing files and config")
+	domain := flag.String("domain", "", "domain name for tls with letsencrypt (port 443 must be forwarded)")
+	loglevel := flag.String("loglevel", "info", "log level {debug,info,warn,error}")
+	port := flag.Int("port", 5000, "port to listen")
 	certificates := flag.StringArray("certs", []string{}, "list of PEM certificates to import to the HTTP server")
 	flag.Parse()
 
@@ -93,7 +93,7 @@ func main() {
 
 	// And handler for namespace main and method hello
 	log.Infof("adding request method under /ca namespace")
-	if err := r.AddHandler("request", "/ca", ca.SignatureReq, false, true); err != nil {
+	if err := r.AddHandler("auth", "/ca", ca.SignatureReq, false, true); err != nil {
 		log.Fatal(err)
 	}
 	// And handler for namespace main and method hello
