@@ -56,8 +56,8 @@ func main() {
 	// Create the channel for incoming messages and attach to transport
 	listener := make(chan transports.Message)
 
-	// Create HTTPWS endpoint (for HTTP(s) + Websockets(s) handling) using the endpoint interface
-	ep := endpoint.HTTPWSEndPoint{}
+	// Create HTTP endpoint (for HTTP(s) handling) using the endpoint interface
+	ep := endpoint.HTTPEndPoint{}
 
 	// Configures the endpoint
 	ep.SetOption("listenHost", api.ListenHost)
