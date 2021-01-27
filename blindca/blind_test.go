@@ -55,6 +55,14 @@ func TestBlindCA(t *testing.T) {
 
 	b, _ := signature.MarshalJSON()
 	t.Logf("signature %x", b)
+
+	// Do the same with a wrong message hash and check verify fails
+	hash = ethereum.HashRaw(randomBytes(128))
+	m = new(big.Int).SetBytes(hash)
+	if blindsecp256k1.Verify(m, signature, ca.sk.Public()) {
+		t.Errorf("blindsecp256k1 has verified the signature, but it should fail")
+	}
+
 }
 
 func testAuthHandler(r *http.Request, m *BlindCA) bool {
