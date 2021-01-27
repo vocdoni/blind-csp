@@ -45,29 +45,24 @@ func main() {
 	}
 	log.Infof("using ECDSA signer with address %s", signer.Address().Hex())
 
-	// API configuration
-	api := &endpoint.HTTPapi{
-		ListenHost: "0.0.0.0",
-		ListenPort: int32(*port),
-		TLSdomain:  *domain,
-		TLSdirCert: *datadir + "/tls",
-	}
-
 	// Create the channel for incoming messages and attach to transport
 	listener := make(chan transports.Message)
 
 	// Create HTTP endpoint (for HTTP(s) handling) using the endpoint interface
-	ep := endpoint.HTTPEndPoint{}
+	ep := endpoint.HTTPWSendPoint{}
 
 	// Configures the endpoint
-	ep.SetOption("listenHost", api.ListenHost)
-	ep.SetOption("listenPort", api.ListenPort)
-	ep.SetOption("tlsDomain", api.TLSdomain)
+	ep.SetOption(endpoint.OptionListenHost, "0.0.0.0")
+	ep.SetOption(endpoint.OptionListenPort, int32(*port))
+	ep.SetOption(endpoint.OptionTLSdomain, *domain)
+	ep.SetOption(endpoint.OptionTLSdirCert, *datadir+"/tls")
+	ep.SetOption(endpoint.OptionSetMode, endpoint.ModeHTTPonly)
+
 	tls, err := tlsConfig(*certificates)
 	if err != nil {
 		log.Fatalf("cannot import tls certificate %v", err)
 	}
-	ep.SetOption("tlsConfig", tls)
+	ep.SetOption(endpoint.OptionTLSconfig, tls)
 
 	if err := ep.Init(listener); err != nil {
 		log.Fatal(err)
