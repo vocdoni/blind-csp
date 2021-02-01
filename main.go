@@ -11,11 +11,11 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"github.com/vocdoni/blind-ca/blindca"
+	"github.com/vocdoni/blind-ca/handlers"
 	"github.com/vocdoni/multirpc/endpoint"
 	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
-	"github.com/vocdoni/blind-ca/blindca"
-	"github.com/vocdoni/blind-ca/handlers"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/log"
 )
