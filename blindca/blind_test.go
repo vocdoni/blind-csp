@@ -2,18 +2,15 @@ package blindca
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io"
 	"math/big"
-	"math/rand"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/arnaucube/go-blindsecp256k1"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 )
-
-var randReader = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func TestBlindCA(t *testing.T) {
 	// Create the blind CA API and assign the IP auth function
@@ -80,7 +77,8 @@ func TestBlindCA(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(ca.sk.Public().Bytes(), bpub2.Bytes()) {
-		t.Fatalf("public key ECDSA and Blindsecp256k1 do not match: %x != %x", ca.sk.Public().Bytes(), bpub2.Bytes())
+		t.Fatalf("public key ECDSA and Blindsecp256k1 do not match: %x != %x",
+			ca.sk.Public().Bytes(), bpub2.Bytes())
 	}
 
 	// Verity the signature
@@ -93,7 +91,6 @@ func TestBlindCA(t *testing.T) {
 	if blindsecp256k1.Verify(new(big.Int).SetBytes(hash), signature2, bpub2) {
 		t.Errorf("blindsecp256k1 has verified the signature, but it should fail")
 	}
-
 }
 
 func testAuthHandler(r *http.Request, m *BlindCA) bool {
@@ -102,7 +99,7 @@ func testAuthHandler(r *http.Request, m *BlindCA) bool {
 
 func randomBytes(n int) []byte {
 	bytes := make([]byte, n)
-	if _, err := io.ReadFull(randReader, bytes); err != nil {
+	if _, err := io.ReadFull(rand.Reader, bytes); err != nil {
 		panic(err)
 	}
 	return bytes

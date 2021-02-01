@@ -11,7 +11,6 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
-
 	"github.com/vocdoni/multirpc/endpoint"
 	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
@@ -26,22 +25,31 @@ func main() {
 	if err != nil {
 		panic("cannot get user home directory")
 	}
-	privKey := flag.String("key", "", "private CA key as hexadecimal string (leave empty for autogenerate)")
-	datadir := flag.String("dataDir", home+"/.vocdoni-ca", "datadir for storing files and config")
-	domain := flag.String("domain", "", "domain name for tls with letsencrypt (port 443 must be forwarded)")
-	loglevel := flag.String("loglevel", "info", "log level {debug,info,warn,error}")
+	privKey := flag.String("key", "",
+		"private CA key as hexadecimal string (leave empty for autogenerate)")
+	datadir := flag.String("dataDir",
+		home+"/.vocdoni-ca", "datadir for storing files and config")
+	domain := flag.String("domain", "",
+		"domain name for tls with letsencrypt (port 443 must be forwarded)")
+	loglevel := flag.String("loglevel", "info",
+		"log level {debug,info,warn,error}")
 	port := flag.Int("port", 5000, "port to listen")
-	certificates := flag.StringArray("certs", []string{}, "list of PEM certificates to import to the HTTP server")
+	certificates := flag.StringArray("certs", []string{},
+		"list of PEM certificates to import to the HTTP server")
 	flag.Parse()
 
 	log.Init(*loglevel, "stdout")
 	signer := ethereum.SignKeys{}
 	if *privKey == "" {
-		signer.Generate()
+		if err := signer.Generate(); err != nil {
+			log.Fatal(err)
+		}
 		_, priv := signer.HexString()
 		log.Infof("new private key generated: %s", priv)
 	} else {
-		signer.AddHexKey(*privKey)
+		if err := signer.AddHexKey(*privKey); err != nil {
+			log.Fatal(err)
+		}
 	}
 	log.Infof("using ECDSA signer with address %s", signer.Address().Hex())
 
@@ -52,18 +60,29 @@ func main() {
 	ep := endpoint.HTTPWSendPoint{}
 
 	// Configures the endpoint
-	ep.SetOption(endpoint.OptionListenHost, "0.0.0.0")
-	ep.SetOption(endpoint.OptionListenPort, int32(*port))
-	ep.SetOption(endpoint.OptionTLSdomain, *domain)
-	ep.SetOption(endpoint.OptionTLSdirCert, *datadir+"/tls")
-	ep.SetOption(endpoint.OptionSetMode, endpoint.ModeHTTPonly)
+	if err := ep.SetOption(endpoint.OptionListenHost, "0.0.0.0"); err != nil {
+		log.Fatal(err)
+	}
+	if err := ep.SetOption(endpoint.OptionListenPort, int32(*port)); err != nil {
+		log.Fatal(err)
+	}
+	if err := ep.SetOption(endpoint.OptionTLSdomain, *domain); err != nil {
+		log.Fatal(err)
+	}
+	if err := ep.SetOption(endpoint.OptionTLSdirCert, *datadir+"/tls"); err != nil {
+		log.Fatal(err)
+	}
+	if err := ep.SetOption(endpoint.OptionSetMode, endpoint.ModeHTTPonly); err != nil {
+		log.Fatal(err)
+	}
 
 	tls, err := tlsConfig(*certificates)
 	if err != nil {
 		log.Fatalf("cannot import tls certificate %v", err)
 	}
-	ep.SetOption(endpoint.OptionTLSconfig, tls)
-
+	if err := ep.SetOption(endpoint.OptionTLSconfig, tls); err != nil {
+		log.Fatal(err)
+	}
 	if err := ep.Init(listener); err != nil {
 		log.Fatal(err)
 	}
@@ -86,8 +105,9 @@ func main() {
 	r := router.NewRouter(listener, transportMap, &signer, ca.NewAPI)
 
 	// Add namespace /main to the transport httpws
-	r.Transports[ep.ID()].AddNamespace("/ca")
-
+	if err := r.Transports[ep.ID()].AddNamespace("/ca"); err != nil {
+		log.Fatal(err)
+	}
 	// And handler for namespace main and method hello
 	log.Infof("adding request method under /ca namespace")
 	if err := r.AddHandler("auth", "/ca", ca.SignatureReq, false, true); err != nil {
@@ -107,7 +127,6 @@ func main() {
 	<-c
 	log.Warnf("received SIGTERM, exiting at %s", time.Now().Format(time.RFC850))
 	os.Exit(0)
-
 }
 
 func tlsConfig(certificates []string) (*tls.Config, error) {

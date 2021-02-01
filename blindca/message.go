@@ -13,11 +13,14 @@ import (
 	"github.com/vocdoni/multirpc/transports"
 )
 
+// PrivKeyHexSize is the hexadecimal length of a private key
 const PrivKeyHexSize = 64
 
+// BlindCAauthFunc is the function type required for performing an authentication
+// via callback handler.
 type BlindCAauthFunc = func(r *http.Request, msg *BlindCA) bool
 
-// CAAPI blind signature API service for certification authorities.
+// BlindCA blind signature API service for certification authorities
 type BlindCA struct {
 	ID             string          `json:"request"`
 	Method         string          `json:"method,omitempty"`
@@ -30,9 +33,9 @@ type BlindCA struct {
 	MessageHash    router.HexBytes `json:"messageHash,omitempty"`
 	BlindSignature router.HexBytes `json:"blindSignature,omitempty"`
 
-	AuthCallback BlindCAauthFunc  `json:"-"`
-	sk           blind.PrivateKey `json:"-"`
-	keys         sync.Map         `json:"-"`
+	AuthCallback BlindCAauthFunc `json:"-"`
+	sk           blind.PrivateKey
+	keys         sync.Map
 }
 
 // Init initializes the CA API with a private key (64 digits hexadecimal string)
