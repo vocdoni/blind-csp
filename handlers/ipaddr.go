@@ -9,10 +9,12 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
+// IpaddrHandler is a handler that allows only 1 registration for IP
 type IpaddrHandler struct {
 	kv sync.Map
 }
 
+// Auth is the handler for the ipaddr handler
 func (ih *IpaddrHandler) Auth(r *http.Request, ca *blindca.BlindCA) bool {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
