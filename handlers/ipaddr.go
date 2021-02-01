@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vocdoni/vocdoni-blind-ca/blindca"
+	"github.com/vocdoni/blind-ca/blindca"
 	"go.vocdoni.io/dvote/log"
 )
 

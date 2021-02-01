@@ -1,4 +1,4 @@
-module github.com/vocdoni/vocdoni-blind-ca
+module github.com/vocdoni/blind-ca
 
 go 1.15
 
