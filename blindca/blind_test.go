@@ -1,6 +1,7 @@
 package blindca
 
 import (
+	"bytes"
 	"io"
 	"math/big"
 	"math/rand"
@@ -20,9 +21,15 @@ func TestBlindCA(t *testing.T) {
 
 	// Generate a new signing key
 	signer := ethereum.SignKeys{}
-	signer.Generate()
-	pub, priv := signer.HexString()
-	t.Logf("using pubkey:%s privkey:%s", pub, priv)
+	if err := signer.Generate(); err != nil {
+		t.Fatal(err)
+	}
+	_, priv := signer.HexString()
+	pubdesc, err := ethereum.DecompressPubKey(signer.PublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("using pubkey:%x privkey:%s", pubdesc, priv)
 
 	// Use the key generate for initialize the CAAPI
 	if err := ca.Init(priv, testAuthHandler); err != nil {
@@ -41,25 +48,49 @@ func TestBlindCA(t *testing.T) {
 	// Blind the message that is gonna be signed using the R point
 	msgBlinded, userSecretData := blindsecp256k1.Blind(m, signerR)
 
-	// Perform the blind signature on the blind message
+	// Perform the blind signature on the blinded message
 	blindedSignature, err := ca.Sign(signerR, msgBlinded.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Unblind the signature and verify it
+	// Unblind the signature
 	signature := blindsecp256k1.Unblind(new(big.Int).SetBytes(blindedSignature), m, userSecretData)
-	if !blindsecp256k1.Verify(m, signature, ca.sk.Public()) {
+
+	// Get the serialized signature
+	b := signature.Bytes()
+	t.Logf("signature %x", b)
+
+	// Recover the serialized signature into signature2 var
+	signature2, err := blindsecp256k1.NewSignatureFromBytes(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(signature.Bytes(), signature2.Bytes()) {
+		t.Fatalf("signature obtained with NewSignatureFromBytes and signature are different: %x != %x ",
+			signature.Bytes(), signature2.Bytes())
+	}
+
+	// For verify, use the public key from standard ECDSA (pubdesc)
+	t.Logf("blind PubK: %x", ca.sk.Public().Bytes())
+
+	// From the standard ECDSA pubkey, get the pubkey blind format
+	bpub2, err := blindsecp256k1.NewPublicKeyFromECDSA(pubdesc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(ca.sk.Public().Bytes(), bpub2.Bytes()) {
+		t.Fatalf("public key ECDSA and Blindsecp256k1 do not match: %x != %x", ca.sk.Public().Bytes(), bpub2.Bytes())
+	}
+
+	// Verity the signature
+	if !blindsecp256k1.Verify(m, signature2, bpub2) {
 		t.Errorf("blindsecp256k1 cannot verify the signature")
 	}
 
-	b, _ := signature.MarshalJSON()
-	t.Logf("signature %x", b)
-
 	// Do the same with a wrong message hash and check verify fails
 	hash = ethereum.HashRaw(randomBytes(128))
-	m = new(big.Int).SetBytes(hash)
-	if blindsecp256k1.Verify(m, signature, ca.sk.Public()) {
+	if blindsecp256k1.Verify(new(big.Int).SetBytes(hash), signature2, bpub2) {
 		t.Errorf("blindsecp256k1 has verified the signature, but it should fail")
 	}
 
