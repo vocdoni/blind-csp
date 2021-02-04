@@ -34,9 +34,12 @@ func main() {
 		"domain name for tls with letsencrypt (port 443 must be forwarded)")
 	loglevel := flag.String("loglevel", "info",
 		"log level {debug,info,warn,error}")
+	handler := flag.String("handler", "dummy",
+		fmt.Sprintf("the authentication handler to use for the CA, available: {%s}",
+			handlers.HandlersList()))
 	port := flag.Int("port", 5000, "port to listen")
 	certificates := flag.StringArray("certs", []string{},
-		"list of PEM certificates to import to the HTTP server")
+		"list of PEM certificates to import to the HTTP(s) server")
 	flag.Parse()
 
 	log.Init(*loglevel, "stdout")
@@ -94,12 +97,12 @@ func main() {
 	transportMap[ep.ID()] = ep.Transport()
 
 	// Create the auth handler (currently a dummy one that only checks the IP)
-	ipHandler := handlers.IpaddrHandler{}
+	authHandler := handlers.Handlers[*handler]
 
 	// Create the blind CA API and assign the IP auth function
 	ca := new(blindca.BlindCA)
 	_, priv := signer.HexString()
-	if err := ca.Init(priv, ipHandler.Auth); err != nil {
+	if err := ca.Init(priv, authHandler.Auth); err != nil {
 		log.Fatal(err)
 	}
 
