@@ -45,8 +45,9 @@ func main() {
 		if err := signer.Generate(); err != nil {
 			log.Fatal(err)
 		}
-		_, priv := signer.HexString()
+		pub, priv := signer.HexString()
 		log.Infof("new private key generated: %s", priv)
+		log.Infof("CA public key: %s", pub)
 	} else {
 		if err := signer.AddHexKey(*privKey); err != nil {
 			log.Fatal(err)
