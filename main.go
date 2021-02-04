@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -132,7 +133,7 @@ func main() {
 func tlsConfig(certificates []string) (*tls.Config, error) {
 	caCertPool := x509.NewCertPool()
 	for _, c := range certificates {
-		caCert, err := ioutil.ReadFile(c)
+		caCert, err := ioutil.ReadFile(filepath.Clean(c))
 		if err != nil {
 			return nil, err
 		}
@@ -141,7 +142,11 @@ func tlsConfig(certificates []string) (*tls.Config, error) {
 		}
 		log.Infof("imported CA certificate %s", c)
 	}
-	tlsConfig := &tls.Config{ClientCAs: caCertPool, ClientAuth: tls.RequestClientCert}
+	tlsConfig := &tls.Config{
+		ClientCAs:  caCertPool,
+		ClientAuth: tls.RequestClientCert,
+		MinVersion: 1000,
+	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }

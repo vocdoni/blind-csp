@@ -34,7 +34,7 @@ func TestBlindCA(t *testing.T) {
 	}
 
 	// Generate a new R point for blinding
-	signerR := ca.NewRequestKey()
+	signerR := ca.NewBlindRequestKey()
 
 	// Prepare the hash that will be signed
 	hash := ethereum.HashRaw(randomBytes(128))
@@ -46,7 +46,7 @@ func TestBlindCA(t *testing.T) {
 	msgBlinded, userSecretData := blindsecp256k1.Blind(m, signerR)
 
 	// Perform the blind signature on the blinded message
-	blindedSignature, err := ca.Sign(signerR, msgBlinded.Bytes())
+	blindedSignature, err := ca.SignBlind(signerR, msgBlinded.Bytes())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,16 +69,16 @@ func TestBlindCA(t *testing.T) {
 	}
 
 	// For verify, use the public key from standard ECDSA (pubdesc)
-	t.Logf("blind PubK: %x", ca.sk.Public().Bytes())
+	t.Logf("blind PubK: %x", ca.blindKey.Public().Bytes())
 
 	// From the standard ECDSA pubkey, get the pubkey blind format
 	bpub2, err := blindsecp256k1.NewPublicKeyFromECDSA(pubdesc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(ca.sk.Public().Bytes(), bpub2.Bytes()) {
+	if !bytes.Equal(ca.blindKey.Public().Bytes(), bpub2.Bytes()) {
 		t.Fatalf("public key ECDSA and Blindsecp256k1 do not match: %x != %x",
-			ca.sk.Public().Bytes(), bpub2.Bytes())
+			ca.blindKey.Public().Bytes(), bpub2.Bytes())
 	}
 
 	// Verity the signature

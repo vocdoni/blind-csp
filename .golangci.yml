@@ -3,15 +3,20 @@ issues:
         exclude-use-default: false
 linters:
         enable:
-        - whitespace
-        - gci
+        - gosec
         - misspell
-        - gomnd
-        - gofmt
-        - goimports
+        - gofumpt
         - lll
-        - golint
+        - staticcheck
+        - structcheck
+        - varcheck
+        - unused
+        - typecheck
+        - ineffassign
+        - errcheck
+        - gosimple
+        - goconst
+
 linters-settings:
         lll:
                 line-length: 100
-

@@ -11,10 +11,17 @@ import (
 	blind "github.com/arnaucube/go-blindsecp256k1"
 	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
+	"go.vocdoni.io/dvote/crypto/ethereum"
+	"go.vocdoni.io/dvote/log"
 )
 
-// PrivKeyHexSize is the hexadecimal length of a private key
-const PrivKeyHexSize = 64
+const (
+	// PrivKeyHexSize is the hexadecimal length of a private key
+	PrivKeyHexSize = 64
+
+	// RandomTokenSize is the maximum size of the random token for auth queries
+	RandomTokenSize = 32
+)
 
 // BlindCAauthFunc is the function type required for performing an authentication
 // via callback handler.
@@ -22,20 +29,22 @@ type BlindCAauthFunc = func(r *http.Request, msg *BlindCA) bool
 
 // BlindCA blind signature API service for certification authorities
 type BlindCA struct {
-	ID             string          `json:"request"`
-	Method         string          `json:"method,omitempty"`
-	AuthData       []string        `json:"authData,omitempty"` // reserved for the auth handler
-	Reply          string          `json:"reply,omitempty"`    // reserved for the auth handler
-	Timestamp      int32           `json:"timestamp"`
-	OK             bool            `json:"ok"`
-	Error          string          `json:"error,omitempty"`
-	SignerR        *blind.Point    `json:"signerR,omitempty"`
-	MessageHash    router.HexBytes `json:"messageHash,omitempty"`
-	BlindSignature router.HexBytes `json:"blindSignature,omitempty"`
-
-	AuthCallback BlindCAauthFunc `json:"-"`
-	sk           blind.PrivateKey
-	keys         sync.Map
+	ID            string          `json:"request"`
+	Method        string          `json:"method,omitempty"`
+	AuthData      []string        `json:"authData,omitempty"` // reserved for the auth handler
+	Reply         string          `json:"reply,omitempty"`    // reserved for the auth handler
+	Timestamp     int32           `json:"timestamp"`
+	OK            bool            `json:"ok"`
+	Error         string          `json:"error,omitempty"`
+	Token         router.HexBytes `json:"token,omitempty"`
+	SignatureType string          `json:"signatureType,omitempty"`
+	MessageHash   router.HexBytes `json:"messageHash,omitempty"`
+	Message       []byte          `json:"message,omitempty"`
+	CAsignature   router.HexBytes `json:"caSignature,omitempty"`
+	AuthCallback  BlindCAauthFunc `json:"-"`
+	ecdsaKey      *ethereum.SignKeys
+	blindKey      blind.PrivateKey
+	keys          sync.Map
 }
 
 // Init initializes the CA API with a private key (64 digits hexadecimal string)
@@ -48,52 +57,70 @@ func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc) error {
 	if err != nil {
 		return err
 	}
+
+	// ECDSA signer
+	ca.ecdsaKey = new(ethereum.SignKeys)
+	if err := ca.ecdsaKey.AddHexKey(privKey); err != nil {
+		return err
+	}
+
+	// Blind signer
 	a := new(big.Int).SetBytes(pkb)
-	ca.sk = blind.PrivateKey(*a)
+	ca.blindKey = blind.PrivateKey(*a)
 	ca.AuthCallback = callback
 	return nil
 }
 
-// NewKey creates a new random key
-func NewKey() string {
-	var b [32]byte
-	_, err := rand.Read(b[:])
-	if err != nil {
-		panic(err)
-	}
-	bi := new(big.Int).SetBytes(b[:])
-	return hex.EncodeToString(new(big.Int).Mod(bi, blind.N).Bytes())
-}
-
-// PubKey returns the public key of the blind CA signer
-func (ca *BlindCA) PubKey() string {
-	pubk, err := ca.sk.Public().MarshalJSON()
+// PubKeyBlind returns the public key of the blind CA signer
+func (ca *BlindCA) PubKeyBlind() string {
+	pubk, err := ca.blindKey.Public().MarshalJSON()
 	if err != nil {
 		panic(err)
 	}
 	return hex.EncodeToString(pubk)
 }
 
-// NewRequestKey generates a new request key for blinding a content on the client side.
+// NewBlindRequestKey generates a new request key for blinding a content on the client side.
 // It returns SignerR and SignerQ values.
-func (ca *BlindCA) NewRequestKey() *blind.Point {
+func (ca *BlindCA) NewBlindRequestKey() *blind.Point {
 	k, signerR := blind.NewRequestParameters()
 	index := signerR.X.String() + signerR.Y.String()
 	ca.addKey(index, k)
 	return signerR
 }
 
-// Sign performs a blind signature over hash.
-func (ca *BlindCA) Sign(signerR *blind.Point, hash []byte) ([]byte, error) {
+// NewRequestKey generates a new request key for blinding a content on the client side.
+// It returns SignerR and SignerQ values.
+func (ca *BlindCA) NewRequestKey() []byte {
+	r, err := rand.Int(rand.Reader, big.NewInt(RandomTokenSize))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ca.addKey(string(r.Bytes()), r)
+	return r.Bytes()
+}
+
+// SignECDSA performs a blind signature over hash(msg). Also checks if token is valid
+// and removes it from the local storage.
+func (ca *BlindCA) SignECDSA(token, msg []byte) ([]byte, error) {
+	if k := ca.getKey(string(token)); k == nil {
+		return nil, fmt.Errorf("token not found")
+	}
+	defer ca.delKey(string(token))
+	return ca.ecdsaKey.Sign(msg)
+}
+
+// SignBlind performs a blind signature over hash. Also checks if R point is valid
+// and removes it from the local storage.
+func (ca *BlindCA) SignBlind(signerR *blind.Point, hash []byte) ([]byte, error) {
 	m := new(big.Int).SetBytes(hash)
 	key := signerR.X.String() + signerR.Y.String()
 	k := ca.getKey(key)
 	if k == nil {
 		return nil, fmt.Errorf("unknown R point")
 	}
-	sBlind := ca.sk.BlindSign(m, k)
-	ca.delKey(key)
-	return sBlind.Bytes(), nil
+	defer ca.delKey(key)
+	return ca.blindKey.BlindSign(m, k).Bytes(), nil
 }
 
 // SyncMap helpers
