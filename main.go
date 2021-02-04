@@ -81,7 +81,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tls, err := tlsConfig(*certificates)
+	// Create the auth handler (currently a dummy one that only checks the IP)
+	authHandler := handlers.Handlers[*handler]
+
+	// Create the TLS configuration with the certificates (if required by the handler)
+	tls, err := tlsConfig(*certificates, authHandler.HardcodedCertificate())
 	if err != nil {
 		log.Fatalf("cannot import tls certificate %v", err)
 	}
@@ -96,8 +100,19 @@ func main() {
 	transportMap := make(map[string]transports.Transport)
 	transportMap[ep.ID()] = ep.Transport()
 
-	// Create the auth handler (currently a dummy one that only checks the IP)
-	authHandler := handlers.Handlers[*handler]
+	// Check that the requiered certificate has been included (if any)
+	if authHandler.RequireCertificate() {
+		certFound := false
+		for _, cert := range tls.ClientCAs.Subjects() {
+			certFound = authHandler.CertificateCheck(cert)
+			if certFound {
+				break
+			}
+		}
+		if !certFound {
+			log.Fatalf("handler %s requires a TLS CA valid certificate", *handler)
+		}
+	}
 
 	// Create the blind CA API and assign the IP auth function
 	ca := new(blindca.BlindCA)
@@ -134,10 +149,15 @@ func main() {
 	os.Exit(0)
 }
 
-func tlsConfig(certificates []string) (*tls.Config, error) {
+func tlsConfig(fileCertificates []string, defaultCertificate []byte) (*tls.Config, error) {
 	caCertPool := x509.NewCertPool()
-	for _, c := range certificates {
-		caCert, err := ioutil.ReadFile(filepath.Clean(c))
+	// Try to load the certificates provided by the user
+	for _, c := range fileCertificates {
+		fp, err := filepath.Abs(c)
+		if err != nil {
+			return nil, err
+		}
+		caCert, err := ioutil.ReadFile(filepath.Clean(fp))
 		if err != nil {
 			return nil, err
 		}
@@ -145,6 +165,14 @@ func tlsConfig(certificates []string) (*tls.Config, error) {
 			return nil, fmt.Errorf("unable to load %s CA certificate", c)
 		}
 		log.Infof("imported CA certificate %s", c)
+	}
+	// If no certificates provided by user, then add the default one (if exist)
+	if len(caCertPool.Subjects()) == 0 && len(defaultCertificate) > 1 {
+		log.Debugf("adding certificate %s", defaultCertificate)
+		if ok := caCertPool.AppendCertsFromPEM(defaultCertificate); !ok {
+			return nil, fmt.Errorf("unable to load CA default certificate")
+		}
+		log.Infof("imported CA default certificate")
 	}
 	tlsConfig := &tls.Config{
 		ClientCAs:  caCertPool,

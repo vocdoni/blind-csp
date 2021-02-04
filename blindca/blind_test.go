@@ -28,7 +28,7 @@ func TestBlindCA(t *testing.T) {
 	}
 	t.Logf("using pubkey:%x privkey:%s", pubdesc, priv)
 
-	// Use the key generate for initialize the CAAPI
+	// Use the key generated for initialize the CA with a dummy handler
 	if err := ca.Init(priv, testAuthHandler); err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +93,8 @@ func TestBlindCA(t *testing.T) {
 	}
 }
 
-func testAuthHandler(r *http.Request, m *BlindCA) bool {
-	return true
+func testAuthHandler(r *http.Request, m *BlindCA) (bool, string) {
+	return true, "hello!"
 }
 
 func randomBytes(n int) []byte {

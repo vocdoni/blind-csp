@@ -27,7 +27,7 @@ func (ca *BlindCA) SignatureReq(rr router.RouterRequest) {
 	if ca.AuthCallback == nil {
 		log.Fatal("no auth callback defined")
 	}
-	if ca.AuthCallback(httpctx.Request, rr.Message.(*BlindCA)) {
+	if ok, msg.Reply = ca.AuthCallback(httpctx.Request, rr.Message.(*BlindCA)); ok {
 		msg.OK = true
 		switch req.SignatureType {
 		case SignatureTypeBlind:

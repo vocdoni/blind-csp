@@ -25,7 +25,7 @@ const (
 
 // BlindCAauthFunc is the function type required for performing an authentication
 // via callback handler.
-type BlindCAauthFunc = func(r *http.Request, msg *BlindCA) bool
+type BlindCAauthFunc = func(r *http.Request, msg *BlindCA) (bool, string)
 
 // BlindCA blind signature API service for certification authorities
 type BlindCA struct {

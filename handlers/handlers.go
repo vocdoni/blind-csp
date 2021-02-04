@@ -8,12 +8,16 @@ import (
 )
 
 type AuthHandler interface {
-	Auth(r *http.Request, ca *blindca.BlindCA) bool
+	Auth(r *http.Request, ca *blindca.BlindCA) (bool, string)
+	RequireCertificate() bool
+	HardcodedCertificate() []byte
+	CertificateCheck(subject []byte) bool
 }
 
 var Handlers = map[string]AuthHandler{
 	"dummy":    &DummyHandler{},
 	"uniqueIp": &IpaddrHandler{},
+	"idCat":    &IDcatHandler{},
 }
 
 func HandlersList() string {
