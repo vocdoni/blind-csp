@@ -36,7 +36,7 @@ func (ca *BlindCA) SignatureReq(rr router.RouterRequest) {
 		case SignatureTypeEthereum:
 			msg.Token = ca.NewRequestKey()
 		default:
-			msg.SetError(fmt.Sprintf("invalid signature type %s", msg.SignatureType))
+			msg.SetError(fmt.Sprintf("invalid signature type %s", req.SignatureType))
 		}
 	} else {
 		msg.SetError("unauthorized")
@@ -59,6 +59,7 @@ func (ca *BlindCA) Signature(rr router.RouterRequest) {
 		}
 		return
 	}
+	msg.OK = true
 	switch req.SignatureType {
 	case SignatureTypeBlind:
 		if len(req.MessageHash) == 0 {
@@ -101,8 +102,9 @@ func (ca *BlindCA) Signature(rr router.RouterRequest) {
 			}
 			return
 		}
+	default:
+		msg.SetError(fmt.Sprintf("invalid signature type %s", req.SignatureType))
 	}
-	msg.OK = true
 	if err := rr.Send(router.BuildReply(msg, rr)); err != nil {
 		log.Warn(err)
 	}
