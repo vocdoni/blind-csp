@@ -12,7 +12,6 @@ import (
 	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
 	"go.vocdoni.io/dvote/crypto/ethereum"
-	"go.vocdoni.io/dvote/log"
 )
 
 const (
@@ -82,18 +81,22 @@ func (ca *BlindCA) NewBlindRequestKey() *blind.Point {
 	k, signerR := blind.NewRequestParameters()
 	index := signerR.X.String() + signerR.Y.String()
 	ca.addKey(index, k)
+	if k.Uint64() == 0 {
+		return nil
+	}
 	return signerR
 }
 
 // NewRequestKey generates a new request key for blinding a content on the client side.
 // It returns SignerR and SignerQ values.
 func (ca *BlindCA) NewRequestKey() []byte {
-	r, err := rand.Int(rand.Reader, big.NewInt(RandomTokenSize))
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	ca.addKey(string(r.Bytes()), r)
-	return r.Bytes()
+	ca.addKey(string(b), new(big.Int).SetUint64(0))
+	return b
 }
 
 // SignECDSA performs a blind signature over hash(msg). Also checks if token is valid
