@@ -48,9 +48,8 @@ func main() {
 		if err := signer.Generate(); err != nil {
 			log.Fatal(err)
 		}
-		pub, priv := signer.HexString()
+		_, priv := signer.HexString()
 		log.Infof("new private key generated: %s", priv)
-		log.Infof("CA public key: %s", pub)
 	} else {
 		if err := signer.AddHexKey(*privKey); err != nil {
 			log.Fatal(err)
@@ -116,7 +115,8 @@ func main() {
 
 	// Create the blind CA API and assign the IP auth function
 	ca := new(blindca.BlindCA)
-	_, priv := signer.HexString()
+	pub, priv := signer.HexString()
+	log.Infof("CA public key: %s", pub)
 	if err := ca.Init(priv, authHandler.Auth); err != nil {
 		log.Fatal(err)
 	}
