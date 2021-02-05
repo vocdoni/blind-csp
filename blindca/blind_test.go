@@ -52,7 +52,7 @@ func TestBlindCA(t *testing.T) {
 	}
 
 	// Unblind the signature
-	signature := blindsecp256k1.Unblind(new(big.Int).SetBytes(blindedSignature), m, userSecretData)
+	signature := blindsecp256k1.Unblind(new(big.Int).SetBytes(blindedSignature), userSecretData)
 
 	// Get the serialized signature
 	b := signature.Bytes()
