@@ -120,7 +120,7 @@ func main() {
 	if err := ca.Init(priv, authHandler.Auth); err != nil {
 		log.Fatal(err)
 	}
-
+	log.Debugf("CA blind public key: %s", ca.PubKeyBlind())
 	// Create a new router and attach the transports
 	r := router.NewRouter(listener, transportMap, &signer, ca.NewAPI)
 

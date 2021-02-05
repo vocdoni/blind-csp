@@ -73,11 +73,7 @@ func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc) error {
 
 // PubKeyBlind returns the public key of the blind CA signer
 func (ca *BlindCA) PubKeyBlind() string {
-	pubk, err := ca.blindKey.Public().MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(pubk)
+	return hex.EncodeToString(ca.blindKey.Public().Bytes())
 }
 
 // NewBlindRequestKey generates a new request key for blinding a content on the client side.
