@@ -84,23 +84,15 @@ func main() {
 	authHandler := handlers.Handlers[*handler]
 
 	// Create the TLS configuration with the certificates (if required by the handler)
-	tls, err := tlsConfig(*certificates, authHandler.HardcodedCertificate())
-	if err != nil {
-		log.Fatalf("cannot import tls certificate %v", err)
-	}
-	if err := ep.SetOption(endpoint.OptionTLSconfig, tls); err != nil {
-		log.Fatal(err)
-	}
-	if err := ep.Init(listener); err != nil {
-		log.Fatal(err)
-	}
-
-	// Create the transports map, this allows adding several transports on the same router
-	transportMap := make(map[string]transports.Transport)
-	transportMap[ep.ID()] = ep.Transport()
-
-	// Check that the requiered certificate has been included (if any)
 	if authHandler.RequireCertificate() {
+		tls, err := tlsConfig(*certificates, authHandler.HardcodedCertificate())
+		if err != nil {
+			log.Fatalf("cannot import tls certificate %v", err)
+		}
+		if err := ep.SetOption(endpoint.OptionTLSconfig, tls); err != nil {
+			log.Fatal(err)
+		}
+		// Check that the requiered certificate has been included (if any)
 		certFound := false
 		for _, cert := range tls.ClientCAs.Subjects() {
 			certFound = authHandler.CertificateCheck(cert)
@@ -112,6 +104,14 @@ func main() {
 			log.Fatalf("handler %s requires a TLS CA valid certificate", *handler)
 		}
 	}
+	// Init the endpoint
+	if err := ep.Init(listener); err != nil {
+		log.Fatal(err)
+	}
+
+	// Create the transports map, this allows adding several transports on the same router
+	transportMap := make(map[string]transports.Transport)
+	transportMap[ep.ID()] = ep.Transport()
 
 	// Create the blind CA API and assign the IP auth function
 	ca := new(blindca.BlindCA)
@@ -179,6 +179,5 @@ func tlsConfig(fileCertificates []string, defaultCertificate []byte) (*tls.Confi
 		ClientAuth: tls.RequestClientCert,
 		MinVersion: 1000,
 	}
-	tlsConfig.BuildNameToCertificate()
 	return tlsConfig, nil
 }
