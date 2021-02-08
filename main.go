@@ -111,8 +111,12 @@ func main() {
 	loglevel := viper.GetString("logLevel")
 	handler := viper.GetString("handler")
 	port := viper.GetInt("port")
-	certificates := viper.GetStringSlice("certs")
-
+	certificates := []string{}
+	for _, c := range viper.GetStringSlice("certs") {
+		if len(c) > 2 {
+			certificates = append(certificates, strings.ReplaceAll(strings.ReplaceAll(c, "[", ""), "]", ""))
+		}
+	}
 	// Start
 	log.Init(loglevel, "stdout")
 	signer := ethereum.SignKeys{}
