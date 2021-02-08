@@ -27,6 +27,11 @@ func (ca *BlindCA) SignatureReq(rr router.RouterRequest) {
 	if ca.AuthCallback == nil {
 		log.Fatal("no auth callback defined")
 	}
+	if httpctx.Request.Method != "POST" {
+		if err := rr.Send(router.BuildReply(msg, rr)); err != nil {
+			log.Warn(err)
+		}
+	}
 	if ok, msg.Reply = ca.AuthCallback(httpctx.Request, rr.Message.(*BlindCA)); ok {
 		msg.OK = true
 		switch req.SignatureType {
@@ -52,6 +57,15 @@ func (ca *BlindCA) Signature(rr router.RouterRequest) {
 	var err error
 	msg := &BlindCA{}
 	req := rr.Message.(*BlindCA)
+	httpctx, ok := rr.MessageContext.(*mhttp.HttpContext)
+	if !ok {
+		log.Fatal("got an invalid router request which is not HTTP")
+	}
+	if httpctx.Request.Method != "POST" {
+		if err := rr.Send(router.BuildReply(msg, rr)); err != nil {
+			log.Warn(err)
+		}
+	}
 	if req.Token == nil {
 		msg.SetError("token is empty")
 		if err := rr.Send(router.BuildReply(msg, rr)); err != nil {

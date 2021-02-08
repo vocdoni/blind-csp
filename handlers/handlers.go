@@ -8,6 +8,8 @@ import (
 )
 
 type AuthHandler interface {
+	Init(opts ...string) error
+	GetName() string
 	Auth(r *http.Request, ca *blindca.BlindCA) (bool, string)
 	RequireCertificate() bool
 	HardcodedCertificate() []byte

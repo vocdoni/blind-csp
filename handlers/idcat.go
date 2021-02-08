@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vocdoni/blind-ca/blindca"
 	"go.vocdoni.io/dvote/crypto/ethereum"
+	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -55,7 +57,34 @@ eVxXDTCfs7GUlxnjOp5j559X/N0A
 
 // IDcatHandler is a handler that checks for an idCat certificate
 type IDcatHandler struct {
-	kv sync.Map
+	kv       *db.BadgerDB
+	keysLock sync.RWMutex
+}
+
+func (ih *IDcatHandler) addKey(index, value []byte) {
+	ih.keysLock.Lock()
+	defer ih.keysLock.Unlock()
+	if err := ih.kv.Put(index, value); err != nil {
+		log.Error(err)
+	}
+}
+
+func (ih *IDcatHandler) exist(index []byte) bool {
+	ih.keysLock.RLock()
+	defer ih.keysLock.RUnlock()
+	_, err := ih.kv.Get(index)
+	return err == nil
+}
+
+// Init initializes the IDcat handler. It takes a single argument for dataDir.
+func (ih *IDcatHandler) Init(opts ...string) (err error) {
+	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
+	return err
+}
+
+// GetName returns the name of the handler
+func (ih *IDcatHandler) GetName() string {
+	return "idCat"
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client
@@ -103,7 +132,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 
 		// Compute unique hash and check if already exist
 		ichash := ic.Hash()
-		if _, ok := ih.kv.Load(ichash); ok {
+		if ih.exist(ichash) {
 			log.Warnf("certificate %x already registered", ichash)
 			return false, "certificate already used"
 		}
@@ -113,7 +142,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 		if len(ca.AuthData) > 0 {
 			authData = ca.AuthData[0]
 		}
-		ih.kv.Store(ichash, authData)
+		ih.addKey(ichash, []byte(authData))
 
 		return true, ""
 	}

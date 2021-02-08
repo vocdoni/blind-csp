@@ -12,6 +12,16 @@ import (
 type DummyHandler struct {
 }
 
+// Init does nothing
+func (dh *DummyHandler) Init(opts ...string) error {
+	return nil
+}
+
+// GetName returns the name of the handler
+func (dh *DummyHandler) GetName() string {
+	return "dummy"
+}
+
 // Auth is the handler for the dummy handler
 func (dh *DummyHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
 	log.Infof(r.UserAgent())

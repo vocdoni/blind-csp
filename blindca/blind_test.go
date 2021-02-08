@@ -29,7 +29,7 @@ func TestBlindCA(t *testing.T) {
 	t.Logf("using pubkey:%x privkey:%s", pubdesc, priv)
 
 	// Use the key generated for initialize the CA with a dummy handler
-	if err := ca.Init(priv, testAuthHandler); err != nil {
+	if err := ca.Init(priv, testAuthHandler, t.TempDir()); err != nil {
 		t.Fatal(err)
 	}
 

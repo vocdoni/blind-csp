@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"path/filepath"
 	"sync"
 
 	blind "github.com/arnaucube/go-blindsecp256k1"
 	"github.com/vocdoni/multirpc/router"
 	"github.com/vocdoni/multirpc/transports"
 	"go.vocdoni.io/dvote/crypto/ethereum"
+	"go.vocdoni.io/dvote/db"
+	"go.vocdoni.io/dvote/log"
 )
 
 const (
@@ -43,12 +46,13 @@ type BlindCA struct {
 	AuthCallback  BlindCAauthFunc `json:"-"`
 	ecdsaKey      *ethereum.SignKeys
 	blindKey      blind.PrivateKey
-	keys          sync.Map
+	keys          *db.BadgerDB
+	keysLock      sync.RWMutex
 }
 
 // Init initializes the CA API with a private key (64 digits hexadecimal string)
 // and a callback authorization function.
-func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc) error {
+func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc, dataDir string) error {
 	if len(privKey) != PrivKeyHexSize {
 		return fmt.Errorf("private key size is incorrect %d", len(privKey))
 	}
@@ -67,7 +71,10 @@ func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc) error {
 	a := new(big.Int).SetBytes(pkb)
 	ca.blindKey = blind.PrivateKey(*a)
 	ca.AuthCallback = callback
-	return nil
+
+	// Storage
+	ca.keys, err = db.NewBadgerDB(filepath.Clean(dataDir))
+	return err
 }
 
 // PubKeyBlind returns the public key of the blind CA signer
@@ -124,19 +131,29 @@ func (ca *BlindCA) SignBlind(signerR *blind.Point, hash []byte) ([]byte, error) 
 
 // SyncMap helpers
 func (ca *BlindCA) addKey(index string, point *big.Int) {
-	ca.keys.Store(index, point)
+	ca.keysLock.Lock()
+	defer ca.keysLock.Unlock()
+	if err := ca.keys.Put([]byte(index), point.Bytes()); err != nil {
+		log.Error(err)
+	}
 }
 
 func (ca *BlindCA) delKey(index string) {
-	ca.keys.Delete(index)
+	ca.keysLock.Lock()
+	defer ca.keysLock.Unlock()
+	if err := ca.keys.Del([]byte(index)); err != nil {
+		log.Error(err)
+	}
 }
 
 func (ca *BlindCA) getKey(index string) *big.Int {
-	p, ok := ca.keys.Load(index)
-	if !ok {
+	ca.keysLock.RLock()
+	defer ca.keysLock.RUnlock()
+	p, err := ca.keys.Get([]byte(index))
+	if err != nil {
 		return nil
 	}
-	return p.(*big.Int)
+	return new(big.Int).SetBytes(p)
 }
 
 // transports.MessageAPI methods

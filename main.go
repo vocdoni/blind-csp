@@ -7,11 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	flag "github.com/spf13/pflag"
+	"github.com/spf13/viper"
 	"github.com/vocdoni/blind-ca/blindca"
 	"github.com/vocdoni/blind-ca/handlers"
 	"github.com/vocdoni/multirpc/endpoint"
@@ -26,32 +29,106 @@ func main() {
 	if err != nil {
 		panic("cannot get user home directory")
 	}
-	privKey := flag.String("key", "",
+	flag.String("key", "",
 		"private CA key as hexadecimal string (leave empty for autogenerate)")
-	datadir := flag.String("dataDir",
-		home+"/.vocdoni-ca", "datadir for storing files and config")
-	domain := flag.String("domain", "",
+	flag.String("dataDir",
+		home+"/.blind-ca", "datadir for storing files and config")
+	flag.String("domain", "",
 		"domain name for tls with letsencrypt (port 443 must be forwarded)")
-	loglevel := flag.String("loglevel", "info",
+	flag.String("logLevel", "info",
 		"log level {debug,info,warn,error}")
-	handler := flag.String("handler", "dummy",
+	flag.String("handler", "dummy",
 		fmt.Sprintf("the authentication handler to use for the CA, available: {%s}",
 			handlers.HandlersList()))
-	port := flag.Int("port", 5000, "port to listen")
-	certificates := flag.StringArray("certs", []string{},
+	flag.Int("port", 5000, "port to listen")
+	flag.StringArray("certs", []string{},
 		"list of PEM certificates to import to the HTTP(s) server")
 	flag.Parse()
 
-	log.Init(*loglevel, "stdout")
+	// Setting up viper
+	viper := viper.New()
+	viper.SetConfigName("blindca")
+	viper.SetConfigType("yml")
+	viper.SetEnvPrefix("BLINDCA")
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Set FlagVars first
+	if err := viper.BindPFlag("dataDir", flag.Lookup("dataDir")); err != nil {
+		panic(err)
+	}
+	dataDir := path.Clean(viper.GetString("dataDir"))
+	viper.AddConfigPath(dataDir)
+	fmt.Printf("Using path %s\n", dataDir)
+	if err := viper.BindPFlag("logLevel", flag.Lookup("logLevel")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("key", flag.Lookup("key")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("domain", flag.Lookup("domain")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("port", flag.Lookup("port")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("handler", flag.Lookup("handler")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("certs", flag.Lookup("certs")); err != nil {
+		panic(err)
+	}
+
+	// check if config file exists
+	_, err = os.Stat(path.Join(dataDir, "blindca.yml"))
+	if os.IsNotExist(err) {
+		fmt.Printf("creating new config file in %s\n", dataDir)
+		// creting config folder if not exists
+		err = os.MkdirAll(dataDir, os.ModePerm)
+		if err != nil {
+			panic(fmt.Sprintf("cannot create data directory: %v", err))
+		}
+		// create config file if not exists
+		if err := viper.SafeWriteConfig(); err != nil {
+			panic(fmt.Sprintf("cannot write config file into config dir: %v", err))
+		}
+
+	} else {
+		// read config file
+		err = viper.ReadInConfig()
+		if err != nil {
+			panic(fmt.Sprintf("cannot read loaded config file in %s: %v", dataDir, err))
+		}
+	}
+	// save config file
+	if err := viper.WriteConfig(); err != nil {
+		panic(fmt.Sprintf("cannot write config file into config dir: %v", err))
+	}
+
+	// Set Viper/Flag variables
+	domain := viper.GetString("domain")
+	privKey := viper.GetString("key")
+	loglevel := viper.GetString("logLevel")
+	handler := viper.GetString("handler")
+	port := viper.GetInt("port")
+	certificates := viper.GetStringSlice("certs")
+
+	// Start
+	log.Init(loglevel, "stdout")
 	signer := ethereum.SignKeys{}
-	if *privKey == "" {
+	if privKey == "" {
 		if err := signer.Generate(); err != nil {
 			log.Fatal(err)
 		}
-		_, priv := signer.HexString()
-		log.Infof("new private key generated: %s", priv)
+		_, privKey = signer.HexString()
+		log.Infof("new private key generated: %s", privKey)
+		viper.Set("key", privKey)
+		viper.Set("pubKey", fmt.Sprintf("%x", signer.PublicKey()))
+		if err := viper.WriteConfig(); err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		if err := signer.AddHexKey(*privKey); err != nil {
+		if err := signer.AddHexKey(privKey); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -67,13 +144,13 @@ func main() {
 	if err := ep.SetOption(endpoint.OptionListenHost, "0.0.0.0"); err != nil {
 		log.Fatal(err)
 	}
-	if err := ep.SetOption(endpoint.OptionListenPort, int32(*port)); err != nil {
+	if err := ep.SetOption(endpoint.OptionListenPort, int32(port)); err != nil {
 		log.Fatal(err)
 	}
-	if err := ep.SetOption(endpoint.OptionTLSdomain, *domain); err != nil {
+	if err := ep.SetOption(endpoint.OptionTLSdomain, domain); err != nil {
 		log.Fatal(err)
 	}
-	if err := ep.SetOption(endpoint.OptionTLSdirCert, *datadir+"/tls"); err != nil {
+	if err := ep.SetOption(endpoint.OptionTLSdirCert, dataDir+"/tls"); err != nil {
 		log.Fatal(err)
 	}
 	if err := ep.SetOption(endpoint.OptionSetMode, endpoint.ModeHTTPonly); err != nil {
@@ -81,11 +158,17 @@ func main() {
 	}
 
 	// Create the auth handler (currently a dummy one that only checks the IP)
-	authHandler := handlers.Handlers[*handler]
-
+	authHandler := handlers.Handlers[handler]
+	if authHandler == nil {
+		log.Fatalf("handler %s is unknown", handler)
+	}
+	if err := authHandler.Init(dataDir); err != nil {
+		log.Fatal(err)
+	}
+	log.Infof("using handler %s", handler)
 	// Create the TLS configuration with the certificates (if required by the handler)
 	if authHandler.RequireCertificate() {
-		tls, err := tlsConfig(*certificates, authHandler.HardcodedCertificate())
+		tls, err := tlsConfig(certificates, authHandler.HardcodedCertificate())
 		if err != nil {
 			log.Fatalf("cannot import tls certificate %v", err)
 		}
@@ -101,7 +184,7 @@ func main() {
 			}
 		}
 		if !certFound {
-			log.Fatalf("handler %s requires a TLS CA valid certificate", *handler)
+			log.Fatalf("handler %s requires a TLS CA valid certificate", handler)
 		}
 	}
 	// Init the endpoint
@@ -117,7 +200,7 @@ func main() {
 	ca := new(blindca.BlindCA)
 	pub, priv := signer.HexString()
 	log.Infof("CA public key: %s", pub)
-	if err := ca.Init(priv, authHandler.Auth); err != nil {
+	if err := ca.Init(priv, authHandler.Auth, path.Join(dataDir, authHandler.GetName())); err != nil {
 		log.Fatal(err)
 	}
 	log.Debugf("CA blind public key: %s", ca.PubKeyBlind())

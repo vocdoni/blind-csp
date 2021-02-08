@@ -2,16 +2,46 @@ package handlers
 
 import (
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/vocdoni/blind-ca/blindca"
+	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/log"
 )
 
 // IpaddrHandler is a handler that allows only 1 registration for IP
 type IpaddrHandler struct {
-	kv sync.Map
+	kv       *db.BadgerDB
+	keysLock sync.RWMutex
+}
+
+func (ih *IpaddrHandler) addKey(index, value []byte) {
+	ih.keysLock.Lock()
+	defer ih.keysLock.Unlock()
+	if err := ih.kv.Put(index, value); err != nil {
+		log.Error(err)
+	}
+}
+
+func (ih *IpaddrHandler) exist(index []byte) bool {
+	ih.keysLock.RLock()
+	defer ih.keysLock.RUnlock()
+	_, err := ih.kv.Get(index)
+	return err == nil
+}
+
+// GetName returns the name of the handler
+func (ih *IpaddrHandler) GetName() string {
+	return "uniqueIp"
+}
+
+// Init initializes the handler.
+// Takes one argument for persistent data directory.
+func (ih *IpaddrHandler) Init(opts ...string) (err error) {
+	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
+	return err
 }
 
 // Auth is the handler for the ipaddr handler
@@ -22,11 +52,11 @@ func (ih *IpaddrHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, strin
 		log.Warnf("cannot get ip from request: %s", r.RemoteAddr)
 		return false, "cannot get IP from request"
 	}
-	if _, ok := ih.kv.Load(ipaddr); ok {
+	if ih.exist([]byte(ipaddr)) {
 		log.Warnf("ip %s already registered", ipaddr)
 		return false, "already registered"
 	}
-	ih.kv.Store(ipaddr, nil)
+	ih.addKey([]byte(ipaddr), nil)
 	log.Infof("new user registered with ip %s", ipaddr)
 	return true, ""
 }
