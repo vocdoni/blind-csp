@@ -18,6 +18,8 @@ const SignatureTypeEthereum = "ECDSA"
 // SignatureReq is the signature request handler.
 // It executes the AuthCallback function to allow or deny the request to the client.
 func (ca *BlindCA) SignatureReq(rr router.RouterRequest) {
+	// TODO: don't use the BlindCA type for both internal state and
+	// request/response messages
 	msg := &BlindCA{}
 	req := rr.Message.(*BlindCA)
 	httpctx, ok := rr.MessageContext.(*mhttp.HttpContext)
