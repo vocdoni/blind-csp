@@ -264,7 +264,6 @@ func tlsConfig(fileCertificates []string, defaultCertificate []byte) (*tls.Confi
 	tlsConfig := &tls.Config{
 		ClientCAs:  caCertPool,
 		ClientAuth: tls.RequestClientCert,
-		MinVersion: 1000,
 	}
 	return tlsConfig, nil
 }

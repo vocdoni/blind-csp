@@ -3,7 +3,6 @@ issues:
         exclude-use-default: false
 linters:
         enable:
-        - gosec
         - misspell
         - gofumpt
         - lll
