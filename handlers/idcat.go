@@ -57,16 +57,16 @@ eVxXDTCfs7GUlxnjOp5j559X/N0A
 
 // IDcatHandler is a handler that checks for an idCat certificate
 type IDcatHandler struct {
+	// TODO: use multirpc instead of go-dvote, and replace dvote/db with
+	// badger directly
 	kv       *db.BadgerDB
 	keysLock sync.RWMutex
 }
 
-func (ih *IDcatHandler) addKey(index, value []byte) {
+func (ih *IDcatHandler) addKey(index, value []byte) error {
 	ih.keysLock.Lock()
 	defer ih.keysLock.Unlock()
-	if err := ih.kv.Put(index, value); err != nil {
-		log.Error(err)
-	}
+	return ih.kv.Put(index, value)
 }
 
 func (ih *IDcatHandler) exist(index []byte) bool {
@@ -110,43 +110,47 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 // certificate content in order to avoid future auth requests from the same identity.
 func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
 	log.Infof(r.UserAgent())
-	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
-		// Get client certificate content
-		content, err := json.MarshalIndent(r.TLS.PeerCertificates[0], "", " ")
-		if err != nil {
-			log.Warn(err)
-			return false, "cannot get idCat certificate identity"
-		}
-		// Unmarshal certificate content
-		ic := new(idCat)
-		if err := json.Unmarshal(content, ic); err != nil {
-			log.Debugf("%s", content)
-			log.Warnf("json unmarshal error: %v", err)
-			return false, "cannot unmarshal certificate"
-		}
-		// Check certificate time
-		if time.Now().Unix() > ic.NotAfter.Unix() || time.Now().Unix() < ic.NotBefore.Unix() {
-			log.Warnf("certificate issued for wrong date")
-			return false, "wrong date on certificate"
-		}
-
-		// Compute unique hash and check if already exist
-		ichash := ic.Hash()
-		if ih.exist(ichash) {
-			log.Warnf("certificate %x already registered", ichash)
-			return false, "certificate already used"
-		}
-
-		// Store the new certificate information
-		authData := ""
-		if len(ca.AuthData) > 0 {
-			authData = ca.AuthData[0]
-		}
-		ih.addKey(ichash, []byte(authData))
-
-		return true, ""
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return false, "no certificate provided"
 	}
-	return false, "no certificate provided"
+	// TODO(mvdan): get rid of the redundant json steps
+	// Get client certificate content
+	content, err := json.MarshalIndent(r.TLS.PeerCertificates[0], "", " ")
+	if err != nil {
+		log.Warn(err)
+		return false, "cannot get idCat certificate identity"
+	}
+	// Unmarshal certificate content
+	ic := new(idCat)
+	if err := json.Unmarshal(content, ic); err != nil {
+		log.Debugf("%s", content)
+		log.Warnf("json unmarshal error: %v", err)
+		return false, "cannot unmarshal certificate"
+	}
+	// Check certificate time
+	if now := time.Now(); now.After(ic.NotAfter) || now.Before(ic.NotBefore) {
+		log.Warnf("certificate issued for wrong date")
+		return false, "wrong date on certificate"
+	}
+
+	// Compute unique hash and check if already exist
+	ichash := ic.Hash()
+	if ih.exist(ichash) {
+		log.Warnf("certificate %x already registered", ichash)
+		return false, "certificate already used"
+	}
+
+	// Store the new certificate information
+	authData := ""
+	if len(ca.AuthData) > 0 {
+		authData = ca.AuthData[0]
+	}
+	if err := ih.addKey(ichash, []byte(authData)); err != nil {
+		log.Warnf("could not add key: %v", err)
+		return false, "failed to add key to database"
+	}
+
+	return true, ""
 }
 
 type idCat struct {
