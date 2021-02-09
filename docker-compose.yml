@@ -1,0 +1,45 @@
+version: "3.7"
+
+services:
+  blind-ca:
+    image: ghcr.io/vocdoni/blind-ca:${BLINDCA_TAG:-latest}
+    sysctls:
+      net.core.somaxconn: 8128
+    env_file:
+      - .env
+    volumes:
+      - blind-ca:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.blind-ca.rule=Host(`${SERVER_NAME}`)"
+      - "traefik.http.routers.blind-ca.entrypoints=websecure"
+      - "traefik.http.routers.blind-ca.tls.certresolver=le"
+      - "traefik.http.routers.blind-ca.service=blind-ca"
+      - "traefik.http.services.blind-ca.loadbalancer.server.port=${BLINDCA_PORT}"
+    restart: unless-stopped
+
+  traefik:
+    image: traefik:2.3
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    command:
+      - "--log.level=DEBUG"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+    restart: unless-stopped
+
+volumes:
+  blind-ca: {}
