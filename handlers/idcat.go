@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"crypto/x509"
+	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/vocdoni/blind-ca/blindca"
-	"go.vocdoni.io/dvote/crypto/ethereum"
+	"github.com/vocdoni/blind-ca/certvalid"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/log"
 )
@@ -18,49 +18,27 @@ import (
 // IDcatSubjectHex is a string that must be present on the HTTP/TLS certificate
 const IDcatSubject = "CONSORCI ADMINISTRACIO OBERTA DE CATALUNYA"
 
-// IDcatCertificate is the IDcat ec_ciutadania default certificate
-const IDcatCertificate = `
------BEGIN CERTIFICATE-----
-MIIF4TCCBMmgAwIBAgIQc+6uFePfrahUGpXs8lhiTzANBgkqhkiG9w0BAQsFADCB
-8zELMAkGA1UEBhMCRVMxOzA5BgNVBAoTMkFnZW5jaWEgQ2F0YWxhbmEgZGUgQ2Vy
-dGlmaWNhY2lvIChOSUYgUS0wODAxMTc2LUkpMSgwJgYDVQQLEx9TZXJ2ZWlzIFB1
-YmxpY3MgZGUgQ2VydGlmaWNhY2lvMTUwMwYDVQQLEyxWZWdldSBodHRwczovL3d3
-dy5jYXRjZXJ0Lm5ldC92ZXJhcnJlbCAoYykwMzE1MDMGA1UECxMsSmVyYXJxdWlh
-IEVudGl0YXRzIGRlIENlcnRpZmljYWNpbyBDYXRhbGFuZXMxDzANBgNVBAMTBkVD
-LUFDQzAeFw0xNDA5MTgwODIxMDBaFw0zMDA5MTgwODIxMDBaMIGGMQswCQYDVQQG
-EwJFUzEzMDEGA1UECgwqQ09OU09SQ0kgQURNSU5JU1RSQUNJTyBPQkVSVEEgREUg
-Q0FUQUxVTllBMSowKAYDVQQLDCFTZXJ2ZWlzIFDDumJsaWNzIGRlIENlcnRpZmlj
-YWNpw7MxFjAUBgNVBAMMDUVDLUNpdXRhZGFuaWEwggEiMA0GCSqGSIb3DQEBAQUA
-A4IBDwAwggEKAoIBAQDFkHPRZPZlXTWZ5psJhbS/Gx+bxcTpGrlVQHHtIkgGz77y
-TA7UZUFb2EQMncfbOhR0OkvQQn1aMvhObFJSR6nI+caf2D+h/m/InMl1MyH3S0Ak
-YGZZsthnyC6KxqK2A/NApncrOreh70ULkQs45aOKsi1kR1W0zE+iFN+/P19P7AkL
-Rl3bXBCVd8w+DLhcwRrkf1FCDw6cEqaFm3cGgf5cbBDMaVYAweWTxwBZAq2RbQAW
-jE7mledcYghcZa4U6bUmCBPuLOnO8KMFAvH+aRzaf3ws5/ZoOVmryyLLJVZ54peZ
-OwnP9EL4OuWzmXCjBifXR2IAblxs5JYj57tls45nAgMBAAGjggHaMIIB1jASBgNV
-HRMBAf8ECDAGAQH/AgEAMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQUC2hZPofI
-oxUa4ECCIl+fHbLFNxUwHwYDVR0jBBgwFoAUoMOLRKo3pUW/l4Ba0fF4opvpXY0w
-gdYGA1UdIASBzjCByzCByAYEVR0gADCBvzAxBggrBgEFBQcCARYlaHR0cHM6Ly93
-d3cuYW9jLmNhdC9DQVRDZXJ0L1JlZ3VsYWNpbzCBiQYIKwYBBQUHAgIwfQx7QXF1
-ZXN0IGNlcnRpZmljYXQgw6lzIGVtw6hzIMO6bmljYSBpIGV4Y2x1c2l2YW1lbnQg
-YSBFbnRpdGF0cyBkZSBDZXJ0aWZpY2FjacOzLiBWZWdldSBodHRwczovL3d3dy5h
-b2MuY2F0L0NBVENlcnQvUmVndWxhY2lvMDMGCCsGAQUFBwEBBCcwJTAjBggrBgEF
-BQcwAYYXaHR0cDovL29jc3AuY2F0Y2VydC5jYXQwYgYDVR0fBFswWTBXoFWgU4Yn
-aHR0cDovL2Vwc2NkLmNhdGNlcnQubmV0L2NybC9lYy1hY2MuY3JshihodHRwOi8v
-ZXBzY2QyLmNhdGNlcnQubmV0L2NybC9lYy1hY2MuY3JsMA0GCSqGSIb3DQEBCwUA
-A4IBAQChqFTjlAH5PyIhLjLgEs68CyNNC1+vDuZXRhy22TI83JcvGmQrZosPvVIL
-PsUXx+C06Pfqmh48Q9S89X9K8w1SdJxP/rZeGEoRiKpwvQzM4ArD9QxyC8jirxex
-3Umg9Ai/sXQ+1lBf6xw4HfUUr1WIp7pNHj0ZWLo106urqktcdeAFWme+/klis5fu
-labCSVPuT/QpwakPrtqOhRms8vgpKiXa/eLtL9ZiA28X/Mker0zlAeTA7Z7uAnp6
-oPJTlZu1Gg1ZDJueTWWsLlO+P+Wzm3MRRIbcgdRzm4mdO7ubu26SzX/aQXDhuih+
-eVxXDTCfs7GUlxnjOp5j559X/N0A
------END CERTIFICATE-----`
+// IDcatCAurl defines where to find the CA root certificate
+const IDcatCAurl = "http://www.catcert.cat/descarrega/ec-ciutadania.crt"
+
+// IDcatCRL is the HTTP endpoint for CRL fetching
+const IDcatCRL = "http://epscd.catcert.net/crl/ec-ciutadania.crl"
+
+// CRLupdateInterval defines the CRL update interval
+const CRLupdateInterval = time.Hour * 24
+
+// CRLupdateDaemonCheckInterval Time to sleep between CRLupdateInternal is checked
+const CRLupdateDaemonCheckInterval = time.Second * 10
 
 // IDcatHandler is a handler that checks for an idCat certificate
 type IDcatHandler struct {
 	// TODO: use multirpc instead of go-dvote, and replace dvote/db with
 	// badger directly
-	kv       *db.BadgerDB
-	keysLock sync.RWMutex
+	kv            *db.BadgerDB
+	keysLock      sync.RWMutex
+	crlValidator  *certvalid.X509CRLValidator
+	crlLastUpdate time.Time
+	caCert        []byte
 }
 
 func (ih *IDcatHandler) addKey(index, value []byte) error {
@@ -78,8 +56,59 @@ func (ih *IDcatHandler) exist(index []byte) bool {
 
 // Init initializes the IDcat handler. It takes a single argument for dataDir.
 func (ih *IDcatHandler) Init(opts ...string) (err error) {
+	// Initialize badger DB for persistent KV storage
 	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
-	return err
+	if err != nil {
+		return err
+	}
+	// Create the CRL validator (for revokated certificates)
+	cert, err := x509.ParseCertificate(ih.Certificate())
+	if err != nil {
+		return err
+	}
+
+	ih.crlValidator = certvalid.NewX509CRLValidator(cert, IDcatCRL)
+	if err := ih.crlValidator.Update(); err != nil {
+		return err
+	}
+	ih.crlLastUpdate = time.Now()
+	log.Infof("fetched %d revoked certificates", len(ih.crlValidator.List))
+	go ih.updateCrlDaemon()
+	return nil
+}
+
+// getCAcertificate obtains the CA root certificate from IDcatCAurl HTTP endpoint
+func (ih *IDcatHandler) getCAcertificate() ([]byte, error) {
+	if ih.caCert != nil {
+		return ih.caCert, nil
+	}
+	resp, err := http.Get(IDcatCAurl)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			panic("error closing HTTP body request on getCAcertificate")
+		}
+	}()
+	return ioutil.ReadAll(resp.Body)
+}
+
+// updateCrlDaemon is a blocking routine that updates the CRL list
+func (ih *IDcatHandler) updateCrlDaemon() {
+	for {
+		if now := time.Now(); now.After(ih.crlLastUpdate.Add(CRLupdateInterval)) {
+			if err := ih.crlValidator.Update(); err != nil {
+				log.Errorf("cannot update CRL list: %v", err)
+			} else {
+				log.Infof("CRL list updated. Got %d revoked certificates", len(ih.crlValidator.List))
+				ih.crlLastUpdate = time.Now()
+				// Give time to the daemon to update before considering CRL list not updated (if strict mode)
+				ih.crlValidator.NextUpdate = ih.crlLastUpdate.Add(CRLupdateInterval).Add(60 * time.Second)
+			}
+		}
+		time.Sleep(CRLupdateDaemonCheckInterval)
+	}
 }
 
 // GetName returns the name of the handler
@@ -94,10 +123,14 @@ func (ih *IDcatHandler) RequireCertificate() bool {
 	return true
 }
 
-// HardcodedCertificate returns a hardcoded CA certificated that will be added to the
+// Certificate returns a hardcoded CA certificated that will be added to the
 // CA cert pool by the handler (optional).
-func (ih *IDcatHandler) HardcodedCertificate() []byte {
-	return []byte(IDcatCertificate)
+func (ih *IDcatHandler) Certificate() []byte {
+	cert, err := ih.getCAcertificate()
+	if err != nil {
+		panic(err)
+	}
+	return cert
 }
 
 // CertificateCheck is used by the Auth handler to ensure a specific certificate is
@@ -109,80 +142,49 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 // Auth handler checks for a valid idCat certificate and stores a hash with the
 // certificate content in order to avoid future auth requests from the same identity.
 func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
-	log.Infof(r.UserAgent())
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		return false, "no certificate provided"
 	}
-	// TODO(mvdan): get rid of the redundant json steps
-	// Get client certificate content
-	content, err := json.MarshalIndent(r.TLS.PeerCertificates[0], "", " ")
-	if err != nil {
-		log.Warn(err)
-		return false, "cannot get idCat certificate identity"
+
+	// Get the client certificate and check that it is actually from the required issues
+	cliCert := r.TLS.PeerCertificates[0]
+	if !strings.Contains(cliCert.Issuer.String(), IDcatSubject) {
+		log.Warnf("client certificate is not issued by %s but %s", IDcatSubject, cliCert.Issuer.String())
+		return false, "client certificate is not issued by the required CA"
 	}
-	// Unmarshal certificate content
-	ic := new(idCat)
-	if err := json.Unmarshal(content, ic); err != nil {
-		log.Debugf("%s", content)
-		log.Warnf("json unmarshal error: %v", err)
-		return false, "cannot unmarshal certificate"
-	}
+
 	// Check certificate time
-	if now := time.Now(); now.After(ic.NotAfter) || now.Before(ic.NotBefore) {
+	if now := time.Now(); now.After(cliCert.NotAfter) || now.Before(cliCert.NotBefore) {
 		log.Warnf("certificate issued for wrong date")
 		return false, "wrong date on certificate"
 	}
 
-	// Compute unique hash and check if already exist
-	ichash := ic.Hash()
-	if ih.exist(ichash) {
-		log.Warnf("certificate %x already registered", ichash)
+	// Check if cert is revokated
+	if r, err := ih.crlValidator.IsRevokated(cliCert, false); r || err != nil {
+		log.Warnf("revokated certificate")
+		return false, "revokated certificate"
+	}
+
+	// Compute unique identifier and check if already exist
+	certId := cliCert.SerialNumber.Bytes()
+	if ih.exist(certId) {
+		log.Warnf("certificate %x already registered", certId)
 		return false, "certificate already used"
 	}
+
+	// TODO check if we can use the following fields
+	// cliCert.Subject.CommonName => Name + Surnames
+	// cliCert.Subject.SerialNumber => DNI + (sometimes Name)
 
 	// Store the new certificate information
 	authData := ""
 	if len(ca.AuthData) > 0 {
 		authData = ca.AuthData[0]
 	}
-	if err := ih.addKey(ichash, []byte(authData)); err != nil {
+	if err := ih.addKey(certId, []byte(authData)); err != nil {
 		log.Warnf("could not add key: %v", err)
-		return false, "failed to add key to database"
+		return false, "internal error 1"
 	}
 
 	return true, ""
-}
-
-type idCat struct {
-	Issuer struct {
-		Country            []string
-		Organization       []string
-		OrganizationalUnit []string
-		Locality           string
-		Province           string
-		StreetAddress      string
-		PostalCode         string
-		SerialNumber       string
-		CommonName         string
-	}
-	Subject struct {
-		Country            []string
-		Organization       []string
-		OrganizationalUnit []string
-		Locality           string
-		Province           string
-		StreetAddress      string
-		PostalCode         string
-		SerialNumber       string
-		CommonName         string
-	}
-	NotBefore time.Time
-	NotAfter  time.Time
-}
-
-func (ic *idCat) Hash() []byte {
-	b := bytes.Buffer{}
-	b.WriteString(ic.Subject.CommonName)
-	b.WriteString(ic.Subject.SerialNumber)
-	return ethereum.HashRaw(b.Bytes())
 }

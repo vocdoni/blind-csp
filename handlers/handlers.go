@@ -12,7 +12,7 @@ type AuthHandler interface {
 	GetName() string
 	Auth(r *http.Request, ca *blindca.BlindCA) (bool, string)
 	RequireCertificate() bool
-	HardcodedCertificate() []byte
+	Certificate() []byte
 	CertificateCheck(subject []byte) bool
 }
 
