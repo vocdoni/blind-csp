@@ -43,7 +43,10 @@ func TestBlindCA(t *testing.T) {
 	m := new(big.Int).SetBytes(hash)
 
 	// Blind the message that is gonna be signed using the R point
-	msgBlinded, userSecretData := blindsecp256k1.Blind(m, signerR)
+	msgBlinded, userSecretData, err := blindsecp256k1.Blind(m, signerR)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Perform the blind signature on the blinded message
 	blindedSignature, err := ca.SignBlind(signerR, msgBlinded.Bytes())

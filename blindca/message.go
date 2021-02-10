@@ -117,7 +117,7 @@ func (ca *BlindCA) SignECDSA(token, msg []byte) ([]byte, error) {
 }
 
 // SignBlind performs a blind signature over hash. Also checks if R point is valid
-// and removes it from the local storage.
+// and removes it from the local storage if err=nil.
 func (ca *BlindCA) SignBlind(signerR *blind.Point, hash []byte) ([]byte, error) {
 	m := new(big.Int).SetBytes(hash)
 	key := signerR.X.String() + signerR.Y.String()
@@ -125,8 +125,12 @@ func (ca *BlindCA) SignBlind(signerR *blind.Point, hash []byte) ([]byte, error) 
 	if k == nil {
 		return nil, fmt.Errorf("unknown R point")
 	}
-	defer ca.delKey(key)
-	return ca.blindKey.BlindSign(m, k).Bytes(), nil
+	signature, err := ca.blindKey.BlindSign(m, k)
+	if err != nil {
+		return nil, err
+	}
+	ca.delKey(key)
+	return signature.Bytes(), nil
 }
 
 // SyncMap helpers
