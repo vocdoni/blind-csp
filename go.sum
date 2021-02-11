@@ -1668,6 +1668,8 @@ github.com/vocdoni/multirpc v0.1.18 h1:sZLW5uE6QVYhNeuFud1yX+H0+3xkP5rNBw1qePY1n
 github.com/vocdoni/multirpc v0.1.18/go.mod h1:zCx0l/hu/Vdeav44geFJmK4PAawN+qoo1HYT2icU4GM=
 github.com/vocdoni/multirpc v0.1.19 h1:qDplldxeOcsPmd4jRjUI3WMeqUZ7Grm/iBIIJu8gu0c=
 github.com/vocdoni/multirpc v0.1.19/go.mod h1:zCx0l/hu/Vdeav44geFJmK4PAawN+qoo1HYT2icU4GM=
+github.com/vocdoni/multirpc v0.1.20 h1:0pOFoP3iKwK/9oqEDYchph3n6LLbJ8nwWlo3ke6vXo0=
+github.com/vocdoni/multirpc v0.1.20/go.mod h1:zCx0l/hu/Vdeav44geFJmK4PAawN+qoo1HYT2icU4GM=
 github.com/vocdoni/storage-proofs-eth-go v0.1.4/go.mod h1:8XF/0CpAetwlQJRgQgwBFEbfaYcjrU9gWUBR4F2Aqso=
 github.com/vocdoni/storage-proofs-eth-go v0.1.5/go.mod h1:8XF/0CpAetwlQJRgQgwBFEbfaYcjrU9gWUBR4F2Aqso=
 github.com/wangjia184/sortedset v0.0.0-20160527075905-f5d03557ba30/go.mod h1:YkocrP2K2tcw938x9gCOmT5G5eCD6jsTz0SZuyAqwIE=
