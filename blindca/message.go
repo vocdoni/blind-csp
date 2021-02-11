@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"path/filepath"
 	"sync"
 
 	blind "github.com/arnaucube/go-blindsecp256k1"
@@ -73,7 +72,8 @@ func (ca *BlindCA) Init(privKey string, callback BlindCAauthFunc, dataDir string
 	ca.AuthCallback = callback
 
 	// Storage
-	ca.keys, err = db.NewBadgerDB(filepath.Clean(dataDir))
+	log.Debugf("initializing idCat persistent storage on %s", dataDir)
+	ca.keys, err = db.NewBadgerDB(dataDir)
 	return err
 }
 
