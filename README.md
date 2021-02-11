@@ -1,8 +1,10 @@
-# blind-ca
+# blind-csp
 
-Vocdoni blind-ca is a modular RPC backend for client authentication and signature retreival.
+Vocdoni blind-csp is a modular RPC backend for Certification Service Providers that provides client authentication and claim/signature retreival.
 
 Currently it supports ECDSA and ECDSA_BLIND signature types.
+
+Supports x509 certificates for client authentication.
 
 Its design makes very easy to write new authentication handlers such as the ones found in the `handlers/` directory.
 
@@ -35,7 +37,7 @@ Reply
 }
 ```
 
-### CA signature
+### CSP signature
 
 Query
 ```
@@ -70,7 +72,7 @@ $ go run . --loglevel=debug --handler=uniqueIp
 
 2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:45     logger construction succeeded at level debug and output stdout
 2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:52     new private key generated: 1ca5cdddfef01ab0a5bc1b7b71b13bdbcef963c372a873feacbac01526608413
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:53     CA public key: 023ce675fd2317e2015f4f10667556ca2f521e0eeef21325290d9ba3996501aa7b
+2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:53     CSP public key: 023ce675fd2317e2015f4f10667556ca2f521e0eeef21325290d9ba3996501aa7b
 2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:59     using ECDSA signer with address 0xBC0525b0cC3eb177a0418760A990f17a25ED8aF5
 2021-02-04T14:08:34+01:00       INFO    endpoint/httpws.go:107  creating API service
 2021-02-04T14:08:34+01:00       INFO    endpoint/httpws.go:162  creating proxy service, listening on 0.0.0.0:5000
