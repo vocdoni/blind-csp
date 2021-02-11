@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -30,13 +31,19 @@ const CRLupdateInterval = time.Hour * 24
 // CRLupdateDaemonCheckInterval Time to sleep between CRLupdateInternal is checked
 const CRLupdateDaemonCheckInterval = time.Second * 10
 
+var regexpDNI = regexp.MustCompile("[0-9]{8}[A-Z]")
+
+var extractIDcatFunc = func(cert *x509.Certificate) string {
+	return regexpDNI.FindString(cert.Subject.SerialNumber)
+}
+
 // IDcatHandler is a handler that checks for an idCat certificate
 type IDcatHandler struct {
 	// TODO: use multirpc instead of go-dvote, and replace dvote/db with
 	// badger directly
 	kv            *db.BadgerDB
 	keysLock      sync.RWMutex
-	crlValidator  *certvalid.X509CRLValidator
+	certManager   *certvalid.X509Manager
 	crlLastUpdate time.Time
 	caCert        []byte
 }
@@ -67,12 +74,8 @@ func (ih *IDcatHandler) Init(opts ...string) (err error) {
 		return err
 	}
 
-	ih.crlValidator = certvalid.NewX509CRLValidator(cert, IDcatCRL)
-	if err := ih.crlValidator.Update(); err != nil {
-		return err
-	}
-	ih.crlLastUpdate = time.Now()
-	log.Infof("fetched %d revoked certificates", len(ih.crlValidator.List))
+	ih.certManager = certvalid.NewX509Manager()
+	ih.certManager.Add(append([]*x509.Certificate{}, cert), IDcatCRL, extractIDcatFunc)
 	go ih.updateCrlDaemon()
 	return nil
 }
@@ -98,14 +101,17 @@ func (ih *IDcatHandler) getCAcertificate() ([]byte, error) {
 func (ih *IDcatHandler) updateCrlDaemon() {
 	for {
 		if now := time.Now(); now.After(ih.crlLastUpdate.Add(CRLupdateInterval)) {
-			if err := ih.crlValidator.Update(); err != nil {
-				log.Errorf("cannot update CRL list: %v", err)
+			log.Infof("updating CRL lists")
+			// Give time to the daemon to update (60 extra seconds) before considering
+			// CRL list not updated (if strict mode).
+			if err := ih.certManager.Update(
+				now.Add(CRLupdateInterval).Add(60 * time.Second)); err != nil {
+				log.Errorf("updateCrlDaemon: %v", err)
 			} else {
-				log.Infof("CRL list updated. Got %d revoked certificates", len(ih.crlValidator.List))
-				ih.crlLastUpdate = time.Now()
-				// Give time to the daemon to update before considering CRL list not updated (if strict mode)
-				ih.crlValidator.NextUpdate = ih.crlLastUpdate.Add(CRLupdateInterval).Add(60 * time.Second)
+				// Only update crlLastUpdate if 100% success, else it will try again on new iteration
+				ih.crlLastUpdate = now.Add(CRLupdateInterval)
 			}
+			log.Infof("got %d revoked certificates from CRL", ih.certManager.RevokedListsSize())
 		}
 		time.Sleep(CRLupdateDaemonCheckInterval)
 	}
@@ -160,14 +166,14 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 	}
 
 	// Check if cert is revokated
-	if r, err := ih.crlValidator.IsRevokated(cliCert, false); r || err != nil {
-		log.Warnf("revokated certificate")
-		return false, "revokated certificate"
+	certId, err := ih.certManager.Verify(cliCert, false)
+	if err != nil {
+		log.Warnf("revoked certificate")
+		return false, "revoked certificate"
 	}
 
 	// Compute unique identifier and check if already exist
-	certId := cliCert.SerialNumber.Bytes()
-	if ih.exist(certId) {
+	if ih.exist([]byte(certId)) {
 		log.Warnf("certificate %x already registered", certId)
 		return false, "certificate already used"
 	}
@@ -181,7 +187,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 	if len(ca.AuthData) > 0 {
 		authData = ca.AuthData[0]
 	}
-	if err := ih.addKey(certId, []byte(authData)); err != nil {
+	if err := ih.addKey([]byte(certId), []byte(authData)); err != nil {
 		log.Warnf("could not add key: %v", err)
 		return false, "internal error 1"
 	}

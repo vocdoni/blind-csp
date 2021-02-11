@@ -5,21 +5,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 )
 
 /// Encapsulate validation of X509 certificates via a CRL
 type X509CRLValidator struct {
 	CA         *x509.Certificate
-	List       map[string]bool
+	list       map[string]bool
 	crlURL     string
 	NextUpdate time.Time
+	updateLock sync.RWMutex
 }
 
 /// Create a new validator using the specified CA and the CRL url specified
 func NewX509CRLValidator(ca *x509.Certificate, crlURL string) *X509CRLValidator {
 	return &X509CRLValidator{
-		ca, nil, crlURL, time.Now().AddDate(0, 0, -1),
+		ca, nil, crlURL, time.Now().AddDate(0, 0, -1), sync.RWMutex{},
 	}
 }
 
@@ -64,9 +66,16 @@ func (x *X509CRLValidator) Update() error {
 		updated[revokedCert.SerialNumber.String()] = true
 	}
 
-	x.List = updated
-
+	x.updateLock.Lock()
+	x.list = updated
+	x.updateLock.Unlock()
 	return nil
+}
+
+func (x *X509CRLValidator) RevokatedListSize() int {
+	x.updateLock.RLock()
+	defer x.updateLock.RUnlock()
+	return len(x.list)
 }
 
 /// IsRevokated checks if a certificate is revokated, use strict mode for production
@@ -80,7 +89,9 @@ func (x *X509CRLValidator) IsRevokated(cert *x509.Certificate, strict bool) (boo
 			return false, fmt.Errorf("CRL outdated, need to Sync()")
 		}
 	}
-	_, revokated := x.List[cert.SerialNumber.String()]
+	x.updateLock.RLock()
+	_, revokated := x.list[cert.SerialNumber.String()]
+	x.updateLock.RUnlock()
 
 	return revokated, nil
 }
