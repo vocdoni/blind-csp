@@ -172,15 +172,12 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 		return false, "revoked certificate"
 	}
 
-	// Compute unique identifier and check if already exist
+	// Check if certificate ID already exist
 	if ih.exist([]byte(certId)) {
-		log.Warnf("certificate %x already registered", certId)
+		log.Warnf("certificate %s already registered", certId)
 		return false, "certificate already used"
 	}
-
-	// TODO check if we can use the following fields
-	// cliCert.Subject.CommonName => Name + Surnames
-	// cliCert.Subject.SerialNumber => DNI + (sometimes Name)
+	log.Debugf("new certificate registered: %s", certId)
 
 	// Store the new certificate information
 	authData := ""
