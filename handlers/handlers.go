@@ -17,9 +17,10 @@ type AuthHandler interface {
 }
 
 var Handlers = map[string]AuthHandler{
-	"dummy":    &DummyHandler{},
-	"uniqueIp": &IpaddrHandler{},
-	"idCat":    &IDcatHandler{},
+	"dummy":        &DummyHandler{},
+	"uniqueIp":     &IpaddrHandler{},
+	"idCat":        &IDcatHandler{ForTesting: false},
+	"idCatTesting": &IDcatHandler{ForTesting: true},
 }
 
 func HandlersList() string {

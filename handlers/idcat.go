@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vocdoni/blind-ca/blindca"
 	"github.com/vocdoni/blind-ca/certvalid"
+	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/log"
 )
@@ -39,6 +41,7 @@ var extractIDcatFunc = func(cert *x509.Certificate) string {
 
 // IDcatHandler is a handler that checks for an idCat certificate
 type IDcatHandler struct {
+	ForTesting bool
 	// TODO: use multirpc instead of go-dvote, and replace dvote/db with
 	// badger directly
 	kv            *db.BadgerDB
@@ -61,8 +64,12 @@ func (ih *IDcatHandler) exist(index []byte) bool {
 	return err == nil
 }
 
-// Init initializes the IDcat handler. It takes a single argument for dataDir.
-func (ih *IDcatHandler) Init(opts ...string) (err error) {
+// Init initializes the IDcat handler. It takes one argument: dataDir
+func (ih *IDcatHandler) Init(opts ...string) error {
+	if len(opts) == 0 {
+		return fmt.Errorf("dataDir is not specified")
+	}
+	var err error
 	// Initialize badger DB for persistent KV storage
 	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
 	if err != nil {
@@ -73,7 +80,7 @@ func (ih *IDcatHandler) Init(opts ...string) (err error) {
 	if err != nil {
 		return err
 	}
-
+	// Create certificate manager
 	ih.certManager = certvalid.NewX509Manager()
 	ih.certManager.Add(append([]*x509.Certificate{}, cert), IDcatCRL, extractIDcatFunc)
 	go ih.updateCrlDaemon()
@@ -171,9 +178,10 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 		log.Warnf("revoked certificate")
 		return false, "revoked certificate"
 	}
+	certIdHash := ethereum.HashRaw([]byte(certId))
 
 	// Check if certificate ID already exist
-	if ih.exist([]byte(certId)) {
+	if ih.exist(certIdHash) && !ih.ForTesting {
 		log.Warnf("certificate %s already registered", certId)
 		return false, "certificate already used"
 	}
@@ -184,7 +192,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 	if len(ca.AuthData) > 0 {
 		authData = ca.AuthData[0]
 	}
-	if err := ih.addKey([]byte(certId), []byte(authData)); err != nil {
+	if err := ih.addKey(certIdHash, []byte(authData)); err != nil {
 		log.Warnf("could not add key: %v", err)
 		return false, "internal error 1"
 	}
