@@ -35,6 +35,7 @@ const CRLupdateDaemonCheckInterval = time.Second * 10
 
 var regexpDNI = regexp.MustCompile("[0-9]{8}[A-Z]")
 
+// Extracts the DNI
 var extractIDcatFunc = func(cert *x509.Certificate) string {
 	return regexpDNI.FindString(cert.Subject.SerialNumber)
 }
@@ -172,21 +173,33 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 		return false, "wrong date on certificate"
 	}
 
-	log.Debugf("certificate subject: %+v", cliCert.Subject)
+	// For testing purposes
+	if ih.ForTesting {
+		log.Debugf("certificate subject: %+v", cliCert.Subject)
+	}
+
 	// Check if cert is revokated
 	certId, err := ih.certManager.Verify(cliCert, false)
 	if err != nil {
-		log.Warnf("revoked certificate")
-		return false, "revoked certificate"
+		log.Warnf("invalid certificate: %v", err)
+		return false, fmt.Sprintf("invalid certificate: %v", err)
 	}
+
+	// Compute the hash for saving the identifier and discard future atempts
 	certIdHash := ethereum.HashRaw([]byte(certId))
 
 	// Check if certificate ID already exist
 	if ih.exist(certIdHash) && !ih.ForTesting {
 		log.Warnf("certificate %s already registered", certId)
-		return false, "certificate already used"
+		return false, "certificate already registered"
 	}
-	log.Debugf("new certificate registered: %s", certId)
+
+	// Print cert identifier
+	if ih.ForTesting {
+		log.Debugf("new certificate registered: %s", certId)
+	} else {
+		log.Debugf("new certificate registered: %x", certIdHash)
+	}
 
 	// Store the new certificate information
 	authData := ""

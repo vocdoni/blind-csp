@@ -79,7 +79,11 @@ func (x *X509Manager) Verify(cert *x509.Certificate, strict bool) (string, error
 			if isRevokated {
 				return "", fmt.Errorf("certificate is revokated")
 			}
-			return v.extractID(cert), nil
+			cid := v.extractID(cert)
+			if len(cid) == 0 {
+				return "", fmt.Errorf("certificate ID invalid")
+			}
+			return cid, nil
 		}
 	}
 	return "", fmt.Errorf("cannot find suitable CA")
