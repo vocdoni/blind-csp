@@ -43,8 +43,8 @@ func (dh *DummyHandler) CertificateCheck(subject []byte) bool {
 	return true
 }
 
-// Certificate returns a hardcoded CA certificated that will be added to the
+// Certificates returns a hardcoded CA certificated that will be added to the
 // CA cert pool by the handler (optional).
-func (dh *DummyHandler) Certificate() []byte {
+func (dh *DummyHandler) Certificates() [][]byte {
 	return nil
 }

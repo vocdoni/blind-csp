@@ -4,11 +4,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -41,9 +39,6 @@ func main() {
 		fmt.Sprintf("the authentication handler to use for the CA, available: {%s}",
 			handlers.HandlersList()))
 	flag.Int("port", 5000, "port to listen")
-	flag.StringArray("certs", []string{},
-		`list of PEM CA certificates to import to the HTTP(s) server. 
-		Will override the hardcoed one by the handler (if any)`)
 	flag.Parse()
 
 	// Setting up viper
@@ -74,9 +69,6 @@ func main() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("handler", flag.Lookup("handler")); err != nil {
-		panic(err)
-	}
-	if err := viper.BindPFlag("certs", flag.Lookup("certs")); err != nil {
 		panic(err)
 	}
 
@@ -112,12 +104,7 @@ func main() {
 	loglevel := viper.GetString("logLevel")
 	handler := viper.GetString("handler")
 	port := viper.GetInt("port")
-	certificates := []string{}
-	for _, c := range viper.GetStringSlice("certs") {
-		if len(c) > 2 {
-			certificates = append(certificates, strings.ReplaceAll(strings.ReplaceAll(c, "[", ""), "]", ""))
-		}
-	}
+
 	// Start
 	log.Init(loglevel, "stdout")
 	signer := ethereum.SignKeys{}
@@ -171,9 +158,10 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Infof("using handler %s", handler)
+
 	// Create the TLS configuration with the certificates (if required by the handler)
 	if authHandler.RequireCertificate() {
-		tls, err := tlsConfig(certificates, authHandler.Certificate())
+		tls, err := tlsConfig(authHandler.Certificates())
 		if err != nil {
 			log.Fatalf("cannot import tls certificate %v", err)
 		}
@@ -237,31 +225,15 @@ func main() {
 	os.Exit(0)
 }
 
-func tlsConfig(fileCertificates []string, x509defaultCertificate []byte) (*tls.Config, error) {
+func tlsConfig(x509certificates [][]byte) (*tls.Config, error) {
 	caCertPool := x509.NewCertPool()
-	// Try to load the certificates provided by the user (PEM)
-	for _, c := range fileCertificates {
-		fp, err := filepath.Abs(c)
-		if err != nil {
-			return nil, err
-		}
-		caCert, err := ioutil.ReadFile(fp)
-		if err != nil {
-			return nil, err
-		}
-		if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-			return nil, fmt.Errorf("unable to load %s CA certificate", c)
-		}
-		log.Infof("imported CA certificate %s", c)
-	}
-	// If no certificates provided by user, then add the default one (if exist)
-	if len(caCertPool.Subjects()) == 0 && len(x509defaultCertificate) > 1 {
-		c, err := x509.ParseCertificate(x509defaultCertificate)
+	for _, cert := range x509certificates {
+		c, err := x509.ParseCertificate(cert)
 		if err != nil {
 			return nil, err
 		}
 		caCertPool.AddCert(c)
-		log.Infof("imported CA default certificate from %s", c.Issuer)
+		log.Infof("imported CA certificate from %s", c.Issuer.String())
 	}
 	tlsConfig := &tls.Config{
 		ClientCAs:  caCertPool,

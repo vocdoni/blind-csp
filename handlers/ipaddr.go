@@ -74,8 +74,8 @@ func (ih *IpaddrHandler) CertificateCheck(subject []byte) bool {
 	return true
 }
 
-// Certificate returns a hardcoded CA certificated that will be added to the
+// Certificates returns a hardcoded CA certificated that will be added to the
 // CA cert pool by the handler (optional).
-func (ih *IpaddrHandler) Certificate() []byte {
+func (ih *IpaddrHandler) Certificates() [][]byte {
 	return nil
 }

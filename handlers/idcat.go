@@ -21,23 +21,49 @@ import (
 // IDcatSubjectHex is a string that must be present on the HTTP/TLS certificate
 const IDcatSubject = "CONSORCI ADMINISTRACIO OBERTA DE CATALUNYA"
 
-// IDcatCAurl defines where to find the CA root certificate
-const IDcatCAurl = "http://www.catcert.cat/descarrega/ec-ciutadania.crt"
-
-// IDcatCRL is the HTTP endpoint for CRL fetching
-const IDcatCRL = "http://epscd.catcert.net/crl/ec-ciutadania.crl"
-
 // CRLupdateInterval defines the CRL update interval
 const CRLupdateInterval = time.Hour * 24
 
 // CRLupdateDaemonCheckInterval Time to sleep between CRLupdateInternal is checked
 const CRLupdateDaemonCheckInterval = time.Second * 10
 
+// Extracts the DNI from idCat
 var regexpDNI = regexp.MustCompile("[0-9]{8}[A-Z]")
 
-// Extracts the DNI
+// Ectracts NIE from idCat
+var regexpNIE = regexp.MustCompile("[A-Z][0-9]{7}[A-Z]")
+
+// Ectracts Passport from idCat
+var regexpPSP = regexp.MustCompile("[A-Z]{3}[0-9]{6}")
+
 var extractIDcatFunc = func(cert *x509.Certificate) string {
-	return regexpDNI.FindString(cert.Subject.SerialNumber)
+	if id := regexpDNI.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+		return id
+	}
+	if id := regexpNIE.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+		return id
+	}
+	return regexpPSP.FindString(cert.Subject.SerialNumber)
+}
+
+type idcatCert struct {
+	crtURL      string
+	crlURL      string
+	extractFunc func(cert *x509.Certificate) string
+}
+
+// IDcatCertificates contains the list of accepted idCat certificates
+var IDcatCertificates = map[string]idcatCert{
+	"ciutadania": {
+		"http://www.catcert.cat/descarrega/ec-ciutadania.crt",
+		"http://epscd.catcert.net/crl/ec-ciutadania.crl",
+		extractIDcatFunc,
+	},
+	"sectorpublic": {
+		"http://www.catcert.cat/descarrega/ec-sectorpublic.crt",
+		"http://epscd.catcert.net/crl/ec-sectorpublic.crl",
+		extractIDcatFunc,
+	},
 }
 
 // IDcatHandler is a handler that checks for an idCat certificate
@@ -49,7 +75,7 @@ type IDcatHandler struct {
 	keysLock      sync.RWMutex
 	certManager   *certvalid.X509Manager
 	crlLastUpdate time.Time
-	caCert        []byte
+	caCerts       [][]byte
 }
 
 func (ih *IDcatHandler) addKey(index, value []byte) error {
@@ -76,24 +102,29 @@ func (ih *IDcatHandler) Init(opts ...string) error {
 	if err != nil {
 		return err
 	}
-	// Create the CRL validator (for revokated certificates)
-	cert, err := x509.ParseCertificate(ih.Certificate())
-	if err != nil {
-		return err
-	}
 	// Create certificate manager
 	ih.certManager = certvalid.NewX509Manager()
-	ih.certManager.Add(append([]*x509.Certificate{}, cert), IDcatCRL, extractIDcatFunc)
+	// Add certificates to the manager
+	for name, certinfo := range IDcatCertificates {
+		log.Infof("fetching certificate %s", name)
+		cert, err := ih.getCAcertificate(certinfo.crtURL)
+		if err != nil {
+			return err
+		}
+		xcert, err := x509.ParseCertificate(cert)
+		if err != nil {
+			return err
+		}
+		ih.certManager.Add(append([]*x509.Certificate{}, xcert), certinfo.crlURL, certinfo.extractFunc)
+		ih.caCerts = append(ih.caCerts, cert)
+	}
 	go ih.updateCrlDaemon()
 	return nil
 }
 
 // getCAcertificate obtains the CA root certificate from IDcatCAurl HTTP endpoint
-func (ih *IDcatHandler) getCAcertificate() ([]byte, error) {
-	if ih.caCert != nil {
-		return ih.caCert, nil
-	}
-	resp, err := http.Get(IDcatCAurl)
+func (ih *IDcatHandler) getCAcertificate(url string) ([]byte, error) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -137,14 +168,10 @@ func (ih *IDcatHandler) RequireCertificate() bool {
 	return true
 }
 
-// Certificate returns a hardcoded CA certificated that will be added to the
+// Certificates returns a hardcoded CA certificated that will be added to the
 // CA cert pool by the handler (optional).
-func (ih *IDcatHandler) Certificate() []byte {
-	cert, err := ih.getCAcertificate()
-	if err != nil {
-		panic(err)
-	}
-	return cert
+func (ih *IDcatHandler) Certificates() [][]byte {
+	return ih.caCerts
 }
 
 // CertificateCheck is used by the Auth handler to ensure a specific certificate is
