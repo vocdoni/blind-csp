@@ -28,19 +28,25 @@ const CRLupdateInterval = time.Hour * 24
 const CRLupdateDaemonCheckInterval = time.Second * 10
 
 // Extracts the DNI from idCat
-var regexpDNI = regexp.MustCompile("[0-9]{8}[A-Z]")
+var regexpDNI = regexp.MustCompile("[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
 
-// Ectracts NIE from idCat
-var regexpNIE = regexp.MustCompile("[A-Z][0-9]{7}[A-Z]")
+// Extracts NIE from idCat
+var regexpNIE = regexp.MustCompile("[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]")
 
-// Ectracts Passport from idCat
-var regexpPSP = regexp.MustCompile("[A-Z]{3}[0-9]{6}")
+// Extracts NIE from idCat (old)
+var regexpNIEold = regexp.MustCompile("X[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
+
+// Extracts Passport from idCat
+var regexpPSP = regexp.MustCompile("[A-Z]{3}[0-9]{6}[A-Z]?")
 
 var extractIDcatFunc = func(cert *x509.Certificate) string {
 	if id := regexpDNI.FindString(cert.Subject.SerialNumber); len(id) > 0 {
 		return id
 	}
 	if id := regexpNIE.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+		return id
+	}
+	if id := regexpNIEold.FindString(cert.Subject.SerialNumber); len(id) > 0 {
 		return id
 	}
 	return regexpPSP.FindString(cert.Subject.SerialNumber)
