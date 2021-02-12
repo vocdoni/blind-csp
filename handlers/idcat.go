@@ -172,6 +172,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 		return false, "wrong date on certificate"
 	}
 
+	log.Debugf("certificate subject: %+v", cliCert.Subject)
 	// Check if cert is revokated
 	certId, err := ih.certManager.Verify(cliCert, false)
 	if err != nil {
