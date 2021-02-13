@@ -223,7 +223,7 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 
 	// Check if certificate ID already exist
 	if ih.exist(certIdHash) && !ih.ForTesting {
-		log.Warnf("certificate %s already registered", certId)
+		log.Warnf("certificate %x already registered", certIdHash)
 		return false, "certificate already registered"
 	}
 
@@ -236,10 +236,10 @@ func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string
 
 	// Store the new certificate information
 	authData := ""
-	if len(ca.AuthData) > 0 {
-		authData = ca.AuthData[0]
+	for _, d := range ca.AuthData {
+		authData += strings.Trim(d, ",") + ","
 	}
-	if err := ih.addKey(certIdHash, []byte(authData)); err != nil {
+	if err := ih.addKey(certIdHash, []byte(strings.TrimRight(authData, ","))); err != nil {
 		log.Warnf("could not add key: %v", err)
 		return false, "internal error 1"
 	}
