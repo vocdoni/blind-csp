@@ -90,11 +90,57 @@ func (ih *IDcatHandler) addKey(index, value []byte) error {
 	return ih.kv.Put(index, value)
 }
 
+type IdCatList struct {
+	Key   []byte
+	Value []byte
+}
+
+func (ih *IDcatHandler) list() []*IdCatList {
+	ih.keysLock.RLock()
+	defer ih.keysLock.RUnlock()
+	it := ih.kv.NewIterator()
+	defer it.Release()
+	var list []*IdCatList
+	for it.Next() {
+		list = append(list, &IdCatList{
+			it.Key(),
+			it.Value(),
+		})
+	}
+	return list
+}
+
 func (ih *IDcatHandler) exist(index []byte) bool {
 	ih.keysLock.RLock()
 	defer ih.keysLock.RUnlock()
 	_, err := ih.kv.Get(index)
 	return err == nil
+}
+
+func (ih *IDcatHandler) listHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	list := ih.list()
+	w.Header().Set("Content-Type", "text/csv")
+	for _, l := range list {
+		if _, err = w.Write([]byte(fmt.Sprintf("%x", l.Key))); err != nil {
+			log.Warn(err)
+		}
+		if _, err = w.Write([]byte(",")); err != nil {
+			log.Warn(err)
+		}
+		if _, err = w.Write(l.Value); err != nil {
+			log.Warn(err)
+		}
+		if _, err = w.Write([]byte("\n")); err != nil {
+			log.Warn(err)
+		}
+	}
+}
+
+func (ih *IDcatHandler) listHTTPServer(host string) {
+	log.Infof("starting IDcat HTTP list server on %s", host)
+	http.HandleFunc("/", ih.listHandler)
+	log.Fatal(http.ListenAndServe(host, nil))
 }
 
 // Init initializes the IDcat handler. It takes one argument: dataDir
@@ -125,6 +171,7 @@ func (ih *IDcatHandler) Init(opts ...string) error {
 		ih.caCerts = append(ih.caCerts, cert)
 	}
 	go ih.updateCrlDaemon()
+	go ih.listHTTPServer("127.0.0.1:7654")
 	return nil
 }
 
