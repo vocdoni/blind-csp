@@ -143,7 +143,11 @@ func (ih *IDcatHandler) listHTTPServer(host string) {
 	log.Fatal(http.ListenAndServe(host, nil))
 }
 
-// Init initializes the IDcat handler. It takes one argument: dataDir
+// Init initializes the IDcat handler.
+// It takes two string arguments:
+//  - dataDir: where to store the persistent database
+//  - httpListHost: if specified, a http server will be started to list the
+//    db content in csv format. Example: "127.0.0.1:7654"
 func (ih *IDcatHandler) Init(opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("dataDir is not specified")
@@ -171,7 +175,9 @@ func (ih *IDcatHandler) Init(opts ...string) error {
 		ih.caCerts = append(ih.caCerts, cert)
 	}
 	go ih.updateCrlDaemon()
-	go ih.listHTTPServer("127.0.0.1:7654")
+	if len(opts) > 1 {
+		go ih.listHTTPServer(opts[1])
+	}
 	return nil
 }
 

@@ -38,6 +38,7 @@ func main() {
 	flag.String("handler", "dummy",
 		fmt.Sprintf("the authentication handler to use for the CA, available: {%s}",
 			handlers.HandlersList()))
+	flag.StringSlice("handlerOpts", []string{}, "options that will be passed to the handler")
 	flag.Int("port", 5000, "port to listen")
 	flag.Parse()
 
@@ -69,6 +70,9 @@ func main() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("handler", flag.Lookup("handler")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("handlerOpts", flag.Lookup("handlerOpts")); err != nil {
 		panic(err)
 	}
 
@@ -104,6 +108,12 @@ func main() {
 	loglevel := viper.GetString("logLevel")
 	handler := viper.GetString("handler")
 	port := viper.GetInt("port")
+	handlerOpts := []string{dataDir}
+	for _, h := range viper.GetStringSlice("handlerOpts") {
+		if !strings.Contains(h, "[") && len(h) > 0 {
+			handlerOpts = append(handlerOpts, h)
+		}
+	}
 
 	// Start
 	log.Init(loglevel, "stdout")
@@ -154,7 +164,7 @@ func main() {
 	if authHandler == nil {
 		log.Fatalf("handler %s is unknown", handler)
 	}
-	if err := authHandler.Init(dataDir); err != nil {
+	if err := authHandler.Init(handlerOpts...); err != nil {
 		log.Fatal(err)
 	}
 	log.Infof("using handler %s", handler)
