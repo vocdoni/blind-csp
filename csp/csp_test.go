@@ -1,4 +1,4 @@
-package blindca
+package csp
 
 import (
 	"bytes"
@@ -13,9 +13,6 @@ import (
 )
 
 func TestBlindCA(t *testing.T) {
-	// Create the blind CA API and assign the IP auth function
-	ca := new(BlindCA)
-
 	// Generate a new signing key
 	signer := ethereum.SignKeys{}
 	if err := signer.Generate(); err != nil {
@@ -29,7 +26,9 @@ func TestBlindCA(t *testing.T) {
 	t.Logf("using pubkey:%x privkey:%s", pubdesc, priv)
 
 	// Use the key generated for initialize the CA with a dummy handler
-	if err := ca.Init(priv, testAuthHandler, t.TempDir()); err != nil {
+	// Create the blind CA API and assign the IP auth function
+	ca, err := NewBlindCSP(priv, t.TempDir(), testAuthHandler)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,7 +95,7 @@ func TestBlindCA(t *testing.T) {
 	}
 }
 
-func testAuthHandler(r *http.Request, m *BlindCA) (bool, string) {
+func testAuthHandler(r *http.Request, m *Message) (bool, string) {
 	return true, "hello!"
 }
 

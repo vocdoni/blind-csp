@@ -6,21 +6,27 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vocdoni/blind-ca/blindca"
+	"github.com/vocdoni/blind-csp/csp"
 	"go.vocdoni.io/dvote/db"
+	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/log"
 )
 
 // IpaddrHandler is a handler that allows only 1 registration for IP
 type IpaddrHandler struct {
-	kv       *db.BadgerDB
+	kv       db.Database
 	keysLock sync.RWMutex
 }
 
 func (ih *IpaddrHandler) addKey(index, value []byte) {
 	ih.keysLock.Lock()
 	defer ih.keysLock.Unlock()
-	if err := ih.kv.Put(index, value); err != nil {
+	tx := ih.kv.WriteTx()
+	defer tx.Discard()
+	if err := tx.Set(index, value); err != nil {
+		log.Error(err)
+	}
+	if err := tx.Commit(); err != nil {
 		log.Error(err)
 	}
 }
@@ -28,7 +34,9 @@ func (ih *IpaddrHandler) addKey(index, value []byte) {
 func (ih *IpaddrHandler) exist(index []byte) bool {
 	ih.keysLock.RLock()
 	defer ih.keysLock.RUnlock()
-	_, err := ih.kv.Get(index)
+	tx := ih.kv.WriteTx()
+	defer tx.Discard()
+	_, err := tx.Get(index)
 	return err == nil
 }
 
@@ -40,12 +48,12 @@ func (ih *IpaddrHandler) GetName() string {
 // Init initializes the handler.
 // Takes one argument for persistent data directory.
 func (ih *IpaddrHandler) Init(opts ...string) (err error) {
-	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
+	ih.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
 	return err
 }
 
 // Auth is the handler for the ipaddr handler
-func (ih *IpaddrHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
+func (ih *IpaddrHandler) Auth(r *http.Request, ca *csp.Message) (bool, string) {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {

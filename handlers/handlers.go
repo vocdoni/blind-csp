@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vocdoni/blind-ca/blindca"
+	"github.com/vocdoni/blind-csp/csp"
 )
 
 type AuthHandler interface {
 	Init(opts ...string) error
 	GetName() string
-	Auth(r *http.Request, ca *blindca.BlindCA) (bool, string)
+	Auth(r *http.Request, ca *csp.Message) (bool, string)
 	RequireCertificate() bool
 	Certificates() [][]byte
 	CertificateCheck(subject []byte) bool
