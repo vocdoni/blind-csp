@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -101,8 +102,8 @@ func TestBlindCA(t *testing.T) {
 	)
 }
 
-func testAuthHandler(r *http.Request, m *Message) (bool, string) {
-	return true, "hello!"
+func testAuthHandler(r *http.Request, m *Message, pid []byte, st string) (bool, string) {
+	return true, fmt.Sprintf("hello %x!", pid)
 }
 
 func randomBytes(n int) []byte {

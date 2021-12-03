@@ -53,8 +53,9 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 	resp := Message{}
 	var ok bool
-	if ok, resp.Response = csp.AuthCallback(ctx.Request, req); ok {
-		switch ctx.URLParam("signType") {
+	signType := ctx.URLParam("signType")
+	if ok, resp.Response = csp.AuthCallback(ctx.Request, req, pid, signType); ok {
+		switch signType {
 		case SignatureTypeBlind:
 			r := csp.NewBlindRequestKey()
 			resp.Token = r.Bytes()

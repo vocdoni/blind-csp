@@ -24,7 +24,7 @@ const (
 
 // BlindCSPauthFunc is the function type required for performing an authentication
 // via callback handler.
-type BlindCSPauthFunc = func(r *http.Request, msg *Message) (bool, string)
+type BlindCSPauthFunc = func(*http.Request, *Message, []byte, string) (bool, string)
 
 // BlindCSP is the blind signature API service for certification authorities
 type BlindCSP struct {

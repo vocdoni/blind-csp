@@ -53,7 +53,8 @@ func (ih *IpaddrHandler) Init(opts ...string) (err error) {
 }
 
 // Auth is the handler for the ipaddr handler
-func (ih *IpaddrHandler) Auth(r *http.Request, ca *csp.Message) (bool, string) {
+func (ih *IpaddrHandler) Auth(r *http.Request,
+	ca *csp.Message, pid []byte, st string) (bool, string) {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {

@@ -250,7 +250,8 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 
 // Auth handler checks for a valid idCat certificate and stores a hash with the
 // certificate content in order to avoid future auth requests from the same identity.
-func (ih *IDcatHandler) Auth(r *http.Request, ca *csp.Message) (bool, string) {
+func (ih *IDcatHandler) Auth(r *http.Request,
+	ca *csp.Message, pid []byte, st string) (bool, string) {
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		return false, "no certificate provided"
 	}

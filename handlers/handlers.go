@@ -10,7 +10,8 @@ import (
 type AuthHandler interface {
 	Init(opts ...string) error
 	GetName() string
-	Auth(r *http.Request, ca *csp.Message) (bool, string)
+	Auth(r *http.Request, ca *csp.Message,
+		processID []byte, signatureType string) (bool, string)
 	RequireCertificate() bool
 	Certificates() [][]byte
 	CertificateCheck(subject []byte) bool
