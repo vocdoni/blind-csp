@@ -1,16 +1,16 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/vocdoni/blind-ca/blindca"
+	"github.com/vocdoni/blind-csp/csp"
 	"go.vocdoni.io/dvote/log"
 )
 
 // DummyHandler is a handler for testing that returns always true
-type DummyHandler struct {
-}
+type DummyHandler struct{}
 
 // Init does nothing
 func (dh *DummyHandler) Init(opts ...string) error {
@@ -23,11 +23,12 @@ func (dh *DummyHandler) GetName() string {
 }
 
 // Auth is the handler for the dummy handler
-func (dh *DummyHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
+func (dh *DummyHandler) Auth(r *http.Request,
+	ca *csp.Message, pid []byte, st string) (bool, string) {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	log.Infof("new user registered with ip %s", ipaddr)
-	return true, "welcome!"
+	return true, fmt.Sprintf("welcome to process %x!", pid)
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

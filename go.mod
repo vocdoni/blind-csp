@@ -1,11 +1,12 @@
-module github.com/vocdoni/blind-ca
+module github.com/vocdoni/blind-csp
 
 go 1.15
 
 require (
-	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20210209195150-ac5d00b89229
+	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20210323162413-ccaa6313370d
+	github.com/ethereum/go-ethereum v1.10.13
+	github.com/frankban/quicktest v1.14.0
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.7.1
-	github.com/vocdoni/multirpc v0.1.20
-	go.vocdoni.io/dvote v0.6.1-0.20210206210936-a0407e833753
+	github.com/spf13/viper v1.8.1
+	go.vocdoni.io/dvote v1.0.4-0.20211129162153-47f7ce591624
 )

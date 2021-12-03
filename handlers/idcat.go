@@ -11,14 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vocdoni/blind-ca/blindca"
-	"github.com/vocdoni/blind-ca/certvalid"
+	"github.com/vocdoni/blind-csp/certvalid"
+	"github.com/vocdoni/blind-csp/csp"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/db"
+	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/log"
 )
 
-// IDcatSubjectHex is a string that must be present on the HTTP/TLS certificate
+// IDcatSubject is a string that must be present on the HTTP/TLS certificate
 const IDcatSubject = "CONSORCI ADMINISTRACIO OBERTA DE CATALUNYA"
 
 // CRLupdateInterval defines the CRL update interval
@@ -77,7 +78,7 @@ type IDcatHandler struct {
 	ForTesting bool
 	// TODO: use multirpc instead of go-dvote, and replace dvote/db with
 	// badger directly
-	kv            *db.BadgerDB
+	kv            db.Database
 	keysLock      sync.RWMutex
 	certManager   *certvalid.X509Manager
 	crlLastUpdate time.Time
@@ -87,7 +88,12 @@ type IDcatHandler struct {
 func (ih *IDcatHandler) addKey(index, value []byte) error {
 	ih.keysLock.Lock()
 	defer ih.keysLock.Unlock()
-	return ih.kv.Put(index, value)
+	tx := ih.kv.WriteTx()
+	defer tx.Discard()
+	if err := tx.Set(index, value); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type IdCatList struct {
@@ -98,14 +104,15 @@ type IdCatList struct {
 func (ih *IDcatHandler) list() []*IdCatList {
 	ih.keysLock.RLock()
 	defer ih.keysLock.RUnlock()
-	it := ih.kv.NewIterator()
-	defer it.Release()
 	var list []*IdCatList
-	for it.Next() {
+	if err := ih.kv.Iterate(nil, func(key, value []byte) bool {
 		list = append(list, &IdCatList{
-			it.Key(),
-			it.Value(),
+			key,
+			value,
 		})
+		return true
+	}); err != nil {
+		log.Error(err)
 	}
 	return list
 }
@@ -113,7 +120,9 @@ func (ih *IDcatHandler) list() []*IdCatList {
 func (ih *IDcatHandler) exist(index []byte) bool {
 	ih.keysLock.RLock()
 	defer ih.keysLock.RUnlock()
-	_, err := ih.kv.Get(index)
+	tx := ih.kv.WriteTx()
+	defer tx.Discard()
+	_, err := tx.Get(index)
 	return err == nil
 }
 
@@ -153,8 +162,8 @@ func (ih *IDcatHandler) Init(opts ...string) error {
 		return fmt.Errorf("dataDir is not specified")
 	}
 	var err error
-	// Initialize badger DB for persistent KV storage
-	ih.kv, err = db.NewBadgerDB(filepath.Clean(opts[0]))
+	// Initialize DB for persistent KV storage
+	ih.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
 	if err != nil {
 		return err
 	}
@@ -241,7 +250,8 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 
 // Auth handler checks for a valid idCat certificate and stores a hash with the
 // certificate content in order to avoid future auth requests from the same identity.
-func (ih *IDcatHandler) Auth(r *http.Request, ca *blindca.BlindCA) (bool, string) {
+func (ih *IDcatHandler) Auth(r *http.Request,
+	ca *csp.Message, pid []byte, st string) (bool, string) {
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		return false, "no certificate provided"
 	}

@@ -7,18 +7,17 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/vocdoni/blind-ca/blindca"
-	"github.com/vocdoni/blind-ca/handlers"
-	"github.com/vocdoni/multirpc/endpoint"
-	"github.com/vocdoni/multirpc/router"
-	"github.com/vocdoni/multirpc/transports"
+	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/handlers"
 	"go.vocdoni.io/dvote/crypto/ethereum"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -28,15 +27,17 @@ func main() {
 		panic("cannot get user home directory")
 	}
 	flag.String("key", "",
-		"private CA key as hexadecimal string (leave empty for autogenerate)")
+		"private CSP key as hexadecimal string (leave empty for autogenerate)")
 	flag.String("dataDir",
-		home+"/.blind-ca", "datadir for storing files and config")
+		home+"/.blindcsp", "datadir for storing files and config")
 	flag.String("domain", "",
 		"domain name for tls with letsencrypt (port 443 must be forwarded)")
+	flag.String("baseURL", "/v1/auth",
+		"base URL path for serving the API")
 	flag.String("logLevel", "info",
 		"log level {debug,info,warn,error}")
 	flag.String("handler", "dummy",
-		fmt.Sprintf("the authentication handler to use for the CA, available: {%s}",
+		fmt.Sprintf("the authentication handler to use, available: {%s}",
 			handlers.HandlersList()))
 	flag.StringSlice("handlerOpts", []string{}, "options that will be passed to the handler")
 	flag.Int("port", 5000, "port to listen")
@@ -64,6 +65,9 @@ func main() {
 		panic(err)
 	}
 	if err := viper.BindPFlag("domain", flag.Lookup("domain")); err != nil {
+		panic(err)
+	}
+	if err := viper.BindPFlag("baseURL", flag.Lookup("baseURL")); err != nil {
 		panic(err)
 	}
 	if err := viper.BindPFlag("port", flag.Lookup("port")); err != nil {
@@ -104,6 +108,7 @@ func main() {
 
 	// Set Viper/Flag variables
 	domain := viper.GetString("domain")
+	baseURL := viper.GetString("baseURL")
 	privKey := viper.GetString("key")
 	loglevel := viper.GetString("logLevel")
 	handler := viper.GetString("handler")
@@ -136,28 +141,10 @@ func main() {
 	}
 	log.Infof("using ECDSA signer with address %s", signer.Address().Hex())
 
-	// Create the channel for incoming messages and attach to transport
-	listener := make(chan transports.Message)
-
-	// Create HTTP endpoint (for HTTP(s) handling) using the endpoint interface
-	ep := endpoint.HTTPWSendPoint{}
-
-	// Configures the endpoint
-	if err := ep.SetOption(endpoint.OptionListenHost, "0.0.0.0"); err != nil {
-		log.Fatal(err)
-	}
-	if err := ep.SetOption(endpoint.OptionListenPort, int32(port)); err != nil {
-		log.Fatal(err)
-	}
-	if err := ep.SetOption(endpoint.OptionTLSdomain, domain); err != nil {
-		log.Fatal(err)
-	}
-	if err := ep.SetOption(endpoint.OptionTLSdirCert, dataDir+"/tls"); err != nil {
-		log.Fatal(err)
-	}
-	if err := ep.SetOption(endpoint.OptionSetMode, endpoint.ModeHTTPonly); err != nil {
-		log.Fatal(err)
-	}
+	// Create the HTTP router
+	router := httprouter.HTTProuter{}
+	router.TLSdomain = domain
+	router.TLSdirCert = filepath.Join(dataDir, "tls")
 
 	// Create the auth handler (currently a dummy one that only checks the IP)
 	authHandler := handlers.Handlers[handler]
@@ -175,9 +162,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("cannot import tls certificate %v", err)
 		}
-		if err := ep.SetOption(endpoint.OptionTLSconfig, tls); err != nil {
-			log.Fatal(err)
-		}
+		router.TLSconfig = tls
 		// Check that the requiered certificate has been included (if any)
 		certFound := false
 		for _, cert := range tls.ClientCAs.Subjects() {
@@ -190,42 +175,22 @@ func main() {
 			log.Fatalf("handler %s requires a TLS CA valid certificate", handler)
 		}
 	}
-	// Init the endpoint
-	if err := ep.Init(listener); err != nil {
+
+	// Start the router
+	if err := router.Init("0.0.0.0", port); err != nil {
 		log.Fatal(err)
 	}
 
-	// Create the transports map, this allows adding several transports on the same router
-	transportMap := make(map[string]transports.Transport)
-	transportMap[ep.ID()] = ep.Transport()
-
-	// Create the blind CA API and assign the IP auth function
-	ca := new(blindca.BlindCA)
+	// Create the blind CA API and assign the auth function
 	pub, priv := signer.HexString()
-	log.Infof("CSP/CA public key: %s", pub)
-	if err := ca.Init(priv, authHandler.Auth, path.Join(dataDir, authHandler.GetName())); err != nil {
+	log.Infof("CSP root public key: %s", pub)
+	cs, err := csp.NewBlindCSP(priv, path.Join(dataDir, authHandler.GetName()), authHandler.Auth)
+	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create a new router and attach the transports
-	r := router.NewRouter(listener, transportMap, &signer, ca.NewAPI)
-
-	// Add namespace /main to the transport httpws
-	if err := r.Transports[ep.ID()].AddNamespace("/ca"); err != nil {
+	if err := cs.ServeAPI(&router, baseURL); err != nil {
 		log.Fatal(err)
 	}
-	// And handler for namespace main and method hello
-	log.Infof("adding request method under /ca namespace")
-	if err := r.AddHandler("auth", "/ca", ca.SignatureReq, false, true); err != nil {
-		log.Fatal(err)
-	}
-	// And handler for namespace main and method hello
-	log.Infof("adding sign method under /ca namespace")
-	if err := r.AddHandler("sign", "/ca", ca.Signature, false, true); err != nil {
-		log.Fatal(err)
-	}
-	// Start routing
-	go r.Route()
 
 	// Wait for SIGTERM
 	c := make(chan os.Signal, 1)

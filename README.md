@@ -1,98 +1,111 @@
 # blind-csp
 
-Vocdoni blind-csp is a modular RPC backend for Certification Service Providers that provides client authentication and claim/signature retreival.
+Vocdoni blind-csp is a modular API backend for Certification Service Providers (CSP) using Blind signatures (among others).
 
-Currently it supports ECDSA and ECDSA_BLIND signature types.
+Currently supported signature types are: PLAIN ECDSA and ECDSA BLIND (on secp256k1)
 
 Supports x509 certificates for client authentication.
 
 Its design makes very easy to write new authentication handlers such as the ones found in the `handlers/` directory.
 
-The API is very simple (there exist only two methods: auth and sign) and follows the same standard of all Vocdoni components.
+## Salted keys
 
-### Authentication and token retreival
+For making the CSP voter approval valid only for a specific voting process (processId), a deterministic key derivation 
+is used. So the CSP is only required to publish a single root public key. The specific per-election keys will be computed
+independently by all parties (CSP will derive its election private key and the election organizers will derive the election
+public key). 
 
-Query
+To this end we use the following simple approach (G is the EC generator):
+
 ```
+PubKeyRootCSP = PrivKeyRootCSP * G
+PrivKey2 = PrivkeyRootCSP + ProcessId
+PubKey2 = PubKeyRootCSP + ProcessId
+```
+
+So if PubKey2 becomes the election CSP public key, there is no way the CSP can share signatures before the processId is known
+and there is no way to reuse a CSP signature for a different election process.
+
+![flow diagram](https://raw.githubusercontent.com/vocdoni/blind-csp/master/misc/blind_csp_flow.svg])
+
+## API
+
+The HTTP(s) API is very minimalistic (as follows):
+
+```
+curl -X POST https://server.foo/v1/auth/processes/<processId>/<signatureType>/<action>
+```
++ processId: is a 32 byte hexadecimal string which identifies the process. It is used to salt the CSP private and public keys
++ signatureType: is either `blind` or `ecdsa`
++ action: is either `auth` or `sign`
+
+### 1. Authentication and token retreival
+
+```js
+curl -X POST https://server.foo/v1/auth/processes/12345.../blind/auth -d '{ "authData": ["data-required-by-the-handler"] }'
+
+// HTTP 200
 {
-  "id": "req-12345678",
-  "request": {
-    "method": "auth",
-    "signatureType": "ECDSA" | "ECDSA_BLIND", // one of the currently supported types
-    "authData": ["John Smith","18-10-2001"], // optional authentication specific data if the CA requires it
-  }
+	"tokenR": "0x1234567890abcde..."
+}
+
+// HTTP 400
+{
+	"error": "Message goes here"
 }
 ```
-Reply
-```
-{
-  "id": "req-12345678",          // id of the originating request
-  "response": {
-    "request": "req-12345678",   // request id here as well
-    "ok": true,                  // whetever there has been an error or not
-    "error": "a possible error", // if error, the message
-    "reply": "welcome John",     // optional reply, depends on the specific CA implementation
-    "token": "0x123456789",      // hexadecimal string with the token (and R point if blind signature request)
-  }
-}
-```
 
-### CSP signature
+### 2. CSP Blind signature
 
-Query
-```
+The signature performed by the CSP key salted with processId, of the blinded payload 
+
+```js
+curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "payload": "0xabcdef...", "tokenR": "0x123bcde..." }'
+
+// HTTP 200
 {
-  "id": "req-12345678",
-  "request": {
-    "method": "sign",
-    "signatureType": "ECDSA" | "ECDSA_BLIND", // must be the same type of the authentication step
-    "token": "0x123456789",       // hexadecimal string with the token (and R point if blind signature request)
-    "messageHash": "0x1234",      // if blind signature, the message hash to sign
-    "message": "base64",          // if ecdsa signature, the message to sign (will be hashed)
-  }
+	"signature": "0x1234567890abcde..." // the blind signature
 }
-```
-Reply
-```
+
+// HTTP 400
 {
-  "id": "req-12345678",          // id of the originating request
-  "response": {
-    "request": "req-12345678",   // request id here as well
-    "ok": true,                  // whetever there has been an error or not
-    "error": "a possible error", // if error, the message
-    "caSignature": "0x1234567",  // hexadecimal string containing the CA signature proof
-  }
+	"error": "Message goes here"
 }
 ```
 
 ## Usage
 
-```bash
+See the `test.sh` file for a full flow example.
+
+```golang
 $ go run . --loglevel=debug --handler=uniqueIp
-
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:45     logger construction succeeded at level debug and output stdout
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:52     new private key generated: 1ca5cdddfef01ab0a5bc1b7b71b13bdbcef963c372a873feacbac01526608413
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:53     CSP public key: 023ce675fd2317e2015f4f10667556ca2f521e0eeef21325290d9ba3996501aa7b
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:59     using ECDSA signer with address 0xBC0525b0cC3eb177a0418760A990f17a25ED8aF5
-2021-02-04T14:08:34+01:00       INFO    endpoint/httpws.go:107  creating API service
-2021-02-04T14:08:34+01:00       INFO    endpoint/httpws.go:162  creating proxy service, listening on 0.0.0.0:5000
-2021-02-04T14:08:34+01:00       INFO    mhttp/proxy.go:133      starting go-chi http server
-2021-02-04T14:08:34+01:00       INFO    mhttp/proxy.go:148      proxy ready at http://[::]:5000
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:132    adding request method under /ca namespace
-2021-02-04T14:08:34+01:00       DEBUG   router/router.go:66     adding new handler auth for namespace /ca
-2021-02-04T14:08:34+01:00       INFO    vocdoni-blind-ca/main.go:137    adding sign method under /ca namespace
-2021-02-04T14:08:34+01:00       DEBUG   router/router.go:66     adding new handler sign for namespace /ca
+Using path /home/user/.blindcsp
+2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:124	logger construction succeeded at level debug with output stdout
+2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:142	using ECDSA signer with address 0xAF1fd9cD2F2A24107757EC58561522869e32F7DF
+2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:157	using handler dummy
+2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:120	starting go-chi http server
+2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:134	router ready at http://[::]:5000
+2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:186	CSP root public key: fef679c673157994e882b85ceeb23ba86f0873493e96f11e2...
+2021-11-29T23:59:53+01:00	DEBUG	csp/csp.go:68	initializing persistent storage on /home/user/.blindcsp/dummy
+2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:148	added namespace bearerStd
+2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:179	added public handler for namespace bearerStd with pattern /v1/auth/processes/{processId}/{signType}/auth
+2021-11-29T23:59:53+01:00	INFO	bearerstdapi/bearerstdapi.go:140	registered POST public method for path /v1/auth/processes/{processId}/{signType}/auth
+2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:179	added public handler for namespace bearerStd with pattern /v1/auth/processes/{processId}/{signType}/sign
+2021-11-29T23:59:53+01:00	INFO	bearerstdapi/bearerstdapi.go:140	registered POST public method for path /v1/auth/processes/{processId}/{signType}/sign
 ```
 
-```bash
+```golang
 $ go run . --help
-
-      --certs stringArray   list of PEM certificates to import to the HTTP(s) server
-      --dataDir string      datadir for storing files and config (default "/home/p4u/.vocdoni-ca")
-      --domain string       domain name for tls with letsencrypt (port 443 must be forwarded)
-      --handler string      the authentication handler to use for the CA, available: {uniqueIp idCat dummy} (default "dummy")
-      --key string          private CA key as hexadecimal string (leave empty for autogenerate)
-      --loglevel string     log level {debug,info,warn,error} (default "info")
-      --port int            port to listen (default 5000)
+      --baseURL string        base URL path for serving the API (default "/v1/auth")
+      --dataDir string        datadir for storing files and config (default "/home/user/.blindcsp")
+      --domain string         domain name for tls with letsencrypt (port 443 must be forwarded)
+      --handler string        the authentication handler to use, available: {dummy uniqueIp idCat} (default "dummy")
+      --handlerOpts strings   options that will be passed to the handler
+      --key string            private CSP key as hexadecimal string (leave empty for autogenerate)
+      --logLevel string       log level {debug,info,warn,error} (default "info")
+      --port int              port to listen (default 5000)
 ```
 
+## Links
+
+1. H. Mala, N. Nezhadansari, *"New Blind Signature Schemes Based on the (Elliptic Curve) Discrete Logarithm Problem"* [https://sci-hub.st/10.1109/iccke.2013.6682844](https://sci-hub.st/10.1109/iccke.2013.6682844) Implementation: [https://github.com/arnaucube/go-blindsecp256k1](https://github.com/arnaucube/go-blindsecp256k1)
