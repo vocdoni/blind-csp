@@ -1,5 +1,5 @@
 #!/bin/bash
-HOST=${HOST:-"127.0.0.1:5000/v1/auth/processes/1234"}
+HOST=${HOST:-"127.0.0.1:5000/v1/auth/processes/89893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265"}
 
 echo "=> ECDSA blind signatre"
 R="$(curl -s $HOST/blind/auth -X POST -d '{"authData":[]}' | jq -Mc .tokenR)"

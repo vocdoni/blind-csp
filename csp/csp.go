@@ -1,15 +1,12 @@
 package csp
 
 import (
-	"encoding/hex"
 	"fmt"
-	"math/big"
 	"net/http"
 	"strings"
 	"sync"
 
-	blind "github.com/arnaucube/go-blindsecp256k1"
-	"go.vocdoni.io/dvote/crypto/ethereum"
+	"github.com/vocdoni/blind-csp/saltedkey"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/httprouter"
@@ -34,8 +31,7 @@ type BlindCSP struct {
 	AuthCallback BlindCSPauthFunc
 	router       *httprouter.HTTProuter
 	api          *bearerstdapi.BearerStandardAPI
-	ecdsaKey     *ethereum.SignKeys
-	blindKey     blind.PrivateKey
+	signer       *saltedkey.SaltedKey
 	keys         db.Database
 	keysLock     sync.RWMutex
 }
@@ -46,23 +42,13 @@ func NewBlindCSP(privKey, dataDir string, callback BlindCSPauthFunc) (*BlindCSP,
 	if len(privKey) != PrivKeyHexSize {
 		return nil, fmt.Errorf("private key size is incorrect %d", len(privKey))
 	}
-	pkb, err := hex.DecodeString(privKey)
-	if err != nil {
-		return nil, err
-	}
-
 	csp := new(BlindCSP)
 	csp.AuthCallback = callback
-
-	// ECDSA signer
-	csp.ecdsaKey = new(ethereum.SignKeys)
-	if err := csp.ecdsaKey.AddHexKey(privKey); err != nil {
+	var err error
+	// ECDSA/Blind signer
+	if csp.signer, err = saltedkey.NewSaltedKey(privKey); err != nil {
 		return nil, err
 	}
-
-	// Blind signer
-	a := new(big.Int).SetBytes(pkb)
-	csp.blindKey = blind.PrivateKey(*a)
 
 	// Storage
 	log.Debugf("initializing persistent storage on %s", dataDir)

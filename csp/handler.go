@@ -1,6 +1,7 @@
 package csp
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/arnaucube/go-blindsecp256k1"
@@ -13,6 +14,8 @@ const SignatureTypeBlind = "blind"
 
 // SignatureTypeEthereum is the standard secp256k1 signature used in Ethereum
 const SignatureTypeEthereum = "ecdsa"
+
+const processIDSize = 32
 
 func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
@@ -41,7 +44,13 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	if err := req.Unmarshal(msg.Data); err != nil {
 		return err
 	}
-
+	pid, err := hex.DecodeString(trimHex(ctx.URLParam("processId")))
+	if err != nil {
+		return fmt.Errorf("cannot decode processId: %w", err)
+	}
+	if len(pid) != processIDSize {
+		return fmt.Errorf("wrong process id: %x", pid)
+	}
 	resp := Message{}
 	var ok bool
 	if ok, resp.Response = csp.AuthCallback(ctx.Request, req); ok {
@@ -76,6 +85,13 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 	if len(req.Payload) == 0 {
 		return fmt.Errorf("message is empty")
 	}
+	pid, err := hex.DecodeString(trimHex(ctx.URLParam("processId")))
+	if err != nil {
+		return fmt.Errorf("cannot decode processId: %w", err)
+	}
+	if len(pid) != processIDSize {
+		return fmt.Errorf("wrong process id: %x", pid)
+	}
 
 	resp := Message{}
 	switch ctx.URLParam("signType") {
@@ -84,13 +100,13 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 		if err != nil {
 			return err
 		}
-		resp.Signature, err = csp.SignBlind(r, req.Payload)
+		resp.Signature, err = csp.SignBlind(r, req.Payload, pid)
 		if err != nil {
 			return err
 		}
 	case SignatureTypeEthereum:
 		var err error
-		resp.Signature, err = csp.SignECDSA(req.Token, req.Payload)
+		resp.Signature, err = csp.SignECDSA(req.Token, req.Payload, pid)
 		if err != nil {
 			return err
 		}
@@ -98,4 +114,11 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 		return fmt.Errorf("invalid signature type")
 	}
 	return ctx.Send(resp.Marshal())
+}
+
+func trimHex(s string) string {
+	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
+		return s[2:]
+	}
+	return s
 }

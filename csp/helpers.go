@@ -2,17 +2,48 @@ package csp
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
 	blind "github.com/arnaucube/go-blindsecp256k1"
+	"github.com/vocdoni/blind-csp/saltedkey"
 	"go.vocdoni.io/dvote/log"
 )
 
-// PubKeyBlind returns the public key of the blind CA signer
-func (csp *BlindCSP) PubKeyBlind() string {
-	return hex.EncodeToString(csp.blindKey.Public().Bytes())
+// PubKeyBlind returns the public key of the blind CSP signer.
+// If processID is nil, returns the root public key.
+// If processID is not nil, returns the salted public key.
+func (csp *BlindCSP) PubKeyBlind(processID []byte) string {
+	if processID == nil {
+		return fmt.Sprintf("%x", csp.signer.BlindPubKey())
+	}
+	var salt [saltedkey.SaltSize]byte
+	copy(salt[:], processID[:saltedkey.SaltSize])
+	pk, err := saltedkey.SaltBlindPubKey(csp.signer.BlindPubKey(), salt)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", pk.Bytes())
+}
+
+// PubKeyECDSA returns the public key of the plain CSP signer
+// If processID is nil, returns the root public key.
+// If processID is not nil, returns the salted public key.
+func (csp *BlindCSP) PubKeyECDSA(processID []byte) string {
+	k, err := csp.signer.ECDSAPubKey()
+	if err != nil {
+		return ""
+	}
+	if processID == nil {
+		return fmt.Sprintf("%x", k)
+	}
+	var salt [saltedkey.SaltSize]byte
+	copy(salt[:], processID[:saltedkey.SaltSize])
+	pk, err := saltedkey.SaltECDSAPubKey(k, salt)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%x", pk)
 }
 
 // NewBlindRequestKey generates a new request key for blinding a content on the client side.
@@ -47,7 +78,7 @@ func (csp *BlindCSP) NewRequestKey() []byte {
 
 // SignECDSA performs a blind signature over hash(msg). Also checks if token is valid
 // and removes it from the local storage.
-func (csp *BlindCSP) SignECDSA(token, msg []byte) ([]byte, error) {
+func (csp *BlindCSP) SignECDSA(token, msg []byte, processId []byte) ([]byte, error) {
 	if k, err := csp.getKey(string(token)); err != nil || k == nil {
 		return nil, fmt.Errorf("token not found")
 	}
@@ -56,26 +87,29 @@ func (csp *BlindCSP) SignECDSA(token, msg []byte) ([]byte, error) {
 			log.Warn(err)
 		}
 	}()
-	return csp.ecdsaKey.Sign(msg)
+	var salt [saltedkey.SaltSize]byte
+	copy(salt[:], processId[:saltedkey.SaltSize])
+	return csp.signer.SignECDSA(salt, msg)
 }
 
 // SignBlind performs a blind signature over hash. Also checks if R point is valid
 // and removes it from the local storage if err=nil.
-func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash []byte) ([]byte, error) {
-	m := new(big.Int).SetBytes(hash)
+func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processId []byte) ([]byte, error) {
 	key := signerR.X.String() + signerR.Y.String()
 	k, err := csp.getKey(key)
 	if k == nil || err != nil {
 		return nil, fmt.Errorf("unknown R point")
 	}
-	signature, err := csp.blindKey.BlindSign(m, k)
+	var salt [saltedkey.SaltSize]byte
+	copy(salt[:], processId[:saltedkey.SaltSize])
+	signature, err := csp.signer.SignBlind(salt, hash, k)
 	if err != nil {
 		return nil, err
 	}
 	if err := csp.delKey(key); err != nil {
 		return nil, err
 	}
-	return signature.Bytes(), nil
+	return signature, nil
 }
 
 // SyncMap helpers

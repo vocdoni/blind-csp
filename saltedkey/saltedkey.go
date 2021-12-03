@@ -111,21 +111,11 @@ func SaltBlindPubKey(pubKey *blind.PublicKey, salt [SaltSize]byte) (*blind.Publi
 }
 
 // SaltECDSAPubKey returns the salted plain public key of pubKey applying the salt.
-func SaltECDSAPubKey(pubKey []byte, salt [SaltSize]byte) ([]byte, error) {
+func SaltECDSAPubKey(pubKey *ecdsa.PublicKey, salt [SaltSize]byte) ([]byte, error) {
 	if pubKey == nil {
 		return nil, fmt.Errorf("public key is nil")
 	}
-	var pk *ecdsa.PublicKey
-	var err error
-	if len(pubKey) == 33 {
-		pk, err = ethcrypto.DecompressPubkey(pubKey)
-	} else {
-		pk, err = ethcrypto.UnmarshalPubkey(pubKey)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("cannot unmarshal public key: %w", err)
-	}
-	x, y := pk.Curve.ScalarBaseMult(salt[:])
-	pk.X, pk.Y = pk.Curve.Add(pk.X, pk.Y, x, y)
-	return ethcrypto.FromECDSAPub(pk), nil
+	x, y := pubKey.Curve.ScalarBaseMult(salt[:])
+	pubKey.X, pubKey.Y = pubKey.Curve.Add(pubKey.X, pubKey.Y, x, y)
+	return ethcrypto.FromECDSAPub(pubKey), nil
 }

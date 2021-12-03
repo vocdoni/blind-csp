@@ -29,7 +29,7 @@ func TestECDSAsaltedKey(t *testing.T) {
 	err = signingKeys.AddHexKey(privHex)
 	qt.Assert(t, err, qt.IsNil)
 
-	pubKeySalted, err := SaltECDSAPubKey(signingKeys.PublicKey(), salt)
+	pubKeySalted, err := SaltECDSAPubKey(&signingKeys.Public, salt)
 	qt.Assert(t, err, qt.IsNil)
 
 	valid, err := ethereum.Verify(msg, signature, pubKeySalted)

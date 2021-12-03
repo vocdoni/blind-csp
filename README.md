@@ -42,11 +42,7 @@ curl -X POST https://server.foo/v1/auth/processes/<processId>/<signatureType>/<a
 ### 1. Authentication and token retreival
 
 ```js
-curl -X POST https://server.foo/v1/auth/processes/12345/blind/auth
-
-{
-	"authData": ["any-data-required-by-the-handler"]
-}
+curl -X POST https://server.foo/v1/auth/processes/12345.../blind/auth -d '{ "authData": ["data-required-by-the-handler"] }'
 
 // HTTP 200
 {
@@ -61,13 +57,10 @@ curl -X POST https://server.foo/v1/auth/processes/12345/blind/auth
 
 ### 2. CSP Blind signature
 
-```js
-curl -X POST https://server.foo/v1/auth/processes/12345/blind/sign
+The signature performed by the CSP key salted with processId, of the blinded payload 
 
-{
-	"payload": "0xabcdef...",   // blind(hash({processId, address}))
-	"tokenR": "0x1234567890abcde..."
-}
+```js
+curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "payload": "0xabcdef...", "tokenR": "0x123bcde..." }'
 
 // HTTP 200
 {
