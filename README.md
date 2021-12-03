@@ -26,7 +26,7 @@ PubKey2 = PubKeyRootCSP + ProcessId
 So if PubKey2 becomes the election CSP public key, there is no way the CSP can share signatures before the processId is known
 and there is no way to reuse a CSP signature for a different election process.
 
-![flow diagram](https://raw.githubusercontent.com/vocdoni/blind-csp/master/misc/blind_csp_flow.svg])
+![flow diagram](https://raw.githubusercontent.com/vocdoni/blind-csp/master/misc/blind_csp_flow.svg)
 
 ## API
 
