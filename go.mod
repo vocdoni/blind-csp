@@ -3,7 +3,7 @@ module github.com/vocdoni/blind-csp
 go 1.15
 
 require (
-	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20210323162413-ccaa6313370d
+	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20211204171003-644e7408753f
 	github.com/ethereum/go-ethereum v1.10.13
 	github.com/frankban/quicktest v1.14.0
 	github.com/pkg/errors v0.9.1 // indirect

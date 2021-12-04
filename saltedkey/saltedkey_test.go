@@ -46,7 +46,8 @@ func TestBlindsaltedKey(t *testing.T) {
 	msgHash := ethereum.HashRaw([]byte("hello world!"))
 
 	// Server: generate a new secretK and R (R is required for blinding and K for signing)
-	k, signerR := blind.NewRequestParameters()
+	k, signerR, err := blind.NewRequestParameters()
+	qt.Assert(t, err, qt.IsNil)
 
 	// Client: blinds the message with R (from server). Keeps userSecretData for unblinding
 	msgBlinded, userSecretData, err := blind.Blind(new(big.Int).SetBytes(msgHash), signerR)

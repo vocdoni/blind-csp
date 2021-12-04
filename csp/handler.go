@@ -79,7 +79,11 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	if ok, resp.Response = csp.AuthCallback(ctx.Request, req, pid, signType); ok {
 		switch signType {
 		case SignatureTypeBlind:
-			resp.Token = csp.NewBlindRequestKey().Bytes()
+			r, err := csp.NewBlindRequestKey()
+			if err != nil {
+				return err
+			}
+			resp.Token = r.Bytes()
 		case SignatureTypeEthereum:
 			resp.Token = csp.NewRequestKey()
 		default:
