@@ -31,7 +31,8 @@ func TestBlindCA(t *testing.T) {
 	qt.Assert(t, err, qt.IsNil)
 
 	// Generate a new R point for blinding
-	signerR := ca.NewBlindRequestKey()
+	signerR, err := ca.NewBlindRequestKey()
+	qt.Assert(t, err, qt.IsNil)
 
 	// Prepare the hash that will be signed
 	hash := ethereum.HashRaw(randomBytes(128))
