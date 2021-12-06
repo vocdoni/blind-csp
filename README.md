@@ -2,18 +2,17 @@
 
 Vocdoni blind-csp is a modular API backend for Certification Service Providers (CSP) using Blind signatures (among others).
 
-Currently supported signature types are: PLAIN ECDSA and ECDSA BLIND (on secp256k1)
+Blind signatures were first suggested by David Chaum: a cryptographic scheme that allows for signatures over disguised (blinded) messages. The blinder (voter in our scenario) can then un-blind the signature and use it as a normal/standard one. This protocol was designed for RSA, but we use it over EC secp256k1: [https://github.com/arnaucube/go-blindsecp256k1](https://github.com/arnaucube/go-blindsecp256k1).
 
-Supports x509 certificates for client authentication.
-
-Its design makes very easy to write new authentication handlers such as the ones found in the `handlers/` directory.
+The API server supports x509 certificates for client authentication so it is a convinient way for authenticating standard/official certificates while preserving the privacy. Its design makes very easy to write new authentication handlers such as the ones found in the `handlers/` directory.
 
 ## Salted keys
 
-For making the CSP voter approval valid only for a specific voting process (processId), a deterministic key derivation 
-is used. So the CSP is only required to publish a single root public key. The specific per-election keys will be computed
-independently by all parties (CSP will derive its election private key and the election organizers will derive the election
-public key). 
+The CSP server cannot see the payload of what is being signed (it is blinded), so a valid signature proof provided by the CSP might be reused or requested for a different validation process.
+
+For making the CSP voter approval valid only for a specific process (identified by a 20 bytes word: processId), a deterministic key derivation 
+is used. So the CSP is only required to publish a single root public key. The specific per-process keys will be computed
+independently by all parties (CSP will derive its election private key and the process organizers will derive the election public key). 
 
 To this end we use the following simple approach (G is the EC generator):
 
