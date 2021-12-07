@@ -12,6 +12,7 @@ type Message struct {
 	Token     types.HexBytes `json:"tokenR,omitempty"`
 	Payload   types.HexBytes `json:"payload,omitempty"`
 	Signature types.HexBytes `json:"signature,omitempty"`
+	SharedKey types.HexBytes `json:"sharedkey,omitempty"`
 	AuthData  []string       `json:"authData,omitempty"` // reserved for the auth handler
 	Response  string         `json:"response,omitempty"` // reserved for the auth handler
 }

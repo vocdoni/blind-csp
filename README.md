@@ -72,6 +72,29 @@ curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "pay
 }
 ```
 
+### 3. Shared Key
+
+The shared key is a common key for all users belonging to the same processId.
+It might be used as shared key for encrypting data which only users able to 
+authenticate should be able to decrypt.
+
+The shared key is the ECDSA salted signature of keccak256(processId).
+
+```js
+curl -X POST https://server.foo/v1/auth/processes/12345.../sharedkey -d '{ "authData": ["data-required-by-the-handler"] }'
+
+// HTTP 200
+{
+	"sharedkey": "0x1234567890abcde..." // the shared key
+}
+
+// HTTP 400
+{
+	"error": "Message goes here"
+}
+```
+
+
 ## Usage
 
 See the `test.sh` file for a full flow example.

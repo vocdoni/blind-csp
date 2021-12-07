@@ -26,6 +26,10 @@ const (
 // via callback handler.
 type BlindCSPauthFunc = func(*http.Request, *Message, []byte, string) (bool, string)
 
+// SharedKeyCSPauthFunc is the function type required for performing an authentication
+// for retreiving the shared key via callback handler.
+type SharedKeyCSPauthFunc = func(*http.Request, *Message, []byte) (bool, string)
+
 // BlindCSP is the blind signature API service for certification authorities
 type BlindCSP struct {
 	AuthCallback BlindCSPauthFunc

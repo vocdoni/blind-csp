@@ -78,7 +78,7 @@ func (csp *BlindCSP) NewRequestKey() []byte {
 
 // SignECDSA performs a blind signature over hash(msg). Also checks if token is valid
 // and removes it from the local storage.
-func (csp *BlindCSP) SignECDSA(token, msg []byte, processId []byte) ([]byte, error) {
+func (csp *BlindCSP) SignECDSA(token, msg []byte, processID []byte) ([]byte, error) {
 	if k, err := csp.getKey(string(token)); err != nil || k == nil {
 		return nil, fmt.Errorf("token not found")
 	}
@@ -88,20 +88,20 @@ func (csp *BlindCSP) SignECDSA(token, msg []byte, processId []byte) ([]byte, err
 		}
 	}()
 	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processId[:saltedkey.SaltSize])
+	copy(salt[:], processID[:saltedkey.SaltSize])
 	return csp.signer.SignECDSA(salt, msg)
 }
 
 // SignBlind performs a blind signature over hash. Also checks if R point is valid
 // and removes it from the local storage if err=nil.
-func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processId []byte) ([]byte, error) {
+func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processID []byte) ([]byte, error) {
 	key := signerR.X.String() + signerR.Y.String()
 	k, err := csp.getKey(key)
 	if k == nil || err != nil {
 		return nil, fmt.Errorf("unknown R point")
 	}
 	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processId[:saltedkey.SaltSize])
+	copy(salt[:], processID[:saltedkey.SaltSize])
 	signature, err := csp.signer.SignBlind(salt, hash, k)
 	if err != nil {
 		return nil, err
@@ -110,6 +110,14 @@ func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processId []byte) ([]
 		return nil, err
 	}
 	return signature, nil
+}
+
+// SharedKey performs a signature over processId which might be used as shared key
+// for all users belonging to the same process.
+func (csp *BlindCSP) SharedKey(processID []byte) ([]byte, error) {
+	var salt [saltedkey.SaltSize]byte
+	copy(salt[:], processID[:saltedkey.SaltSize])
+	return csp.signer.SignECDSA(salt, processID)
 }
 
 // SyncMap helpers

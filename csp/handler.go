@@ -15,6 +15,9 @@ const SignatureTypeBlind = "blind"
 // SignatureTypeEthereum is the standard secp256k1 signature used in Ethereum
 const SignatureTypeEthereum = "ecdsa"
 
+// SignatureTypeSharedKey identifier the shared key (common for all users on the same processId)
+const SignatureTypeSharedKey = "sharedkey"
+
 const processIDSize = 32
 
 func (csp *BlindCSP) registerHandlers() error {
@@ -26,11 +29,21 @@ func (csp *BlindCSP) registerHandlers() error {
 	); err != nil {
 		return err
 	}
-	return csp.api.RegisterMethod(
+
+	if err := csp.api.RegisterMethod(
 		"/processes/{processId}/{signType}/sign",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
 		csp.signature,
+	); err != nil {
+		return err
+	}
+
+	return csp.api.RegisterMethod(
+		"/processes/{processId}/sharedkey",
+		"POST",
+		bearerstdapi.MethodAccessTypePublic,
+		csp.sharedKeyReq,
 	)
 }
 
@@ -57,8 +70,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	if ok, resp.Response = csp.AuthCallback(ctx.Request, req, pid, signType); ok {
 		switch signType {
 		case SignatureTypeBlind:
-			r := csp.NewBlindRequestKey()
-			resp.Token = r.Bytes()
+			resp.Token = csp.NewBlindRequestKey().Bytes()
 		case SignatureTypeEthereum:
 			resp.Token = csp.NewRequestKey()
 		default:
@@ -113,6 +125,37 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 		}
 	default:
 		return fmt.Errorf("invalid signature type")
+	}
+	return ctx.Send(resp.Marshal())
+}
+
+// https://server/v1/auth/processes/<processId>/sharedkey
+
+// sharedKeyReq is the shared key request handler.
+// It executes the AuthCallback function to allow or deny the request to the client.
+// The shared key equals to signatureECDSA(hash(processId)).
+func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
+	ctx *httprouter.HTTPContext) error {
+	req := &Message{}
+	if err := req.Unmarshal(msg.Data); err != nil {
+		return err
+	}
+	pid, err := hex.DecodeString(trimHex(ctx.URLParam("processId")))
+	if err != nil {
+		return fmt.Errorf("cannot decode processId: %w", err)
+	}
+	if len(pid) != processIDSize {
+		return fmt.Errorf("wrong process id: %x", pid)
+	}
+	resp := Message{}
+	var ok bool
+	if ok, resp.Response = csp.AuthCallback(ctx.Request, req, pid, SignatureTypeSharedKey); ok {
+		resp.SharedKey, err = csp.SharedKey(pid)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("unauthorized")
 	}
 	return ctx.Send(resp.Marshal())
 }

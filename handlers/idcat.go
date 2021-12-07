@@ -252,6 +252,9 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 // certificate content in order to avoid future auth requests from the same identity.
 func (ih *IDcatHandler) Auth(r *http.Request,
 	ca *csp.Message, pid []byte, st string) (bool, string) {
+	if st != csp.SignatureTypeBlind {
+		return false, "only blind signature is allowed"
+	}
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		return false, "no certificate provided"
 	}

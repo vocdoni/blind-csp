@@ -61,6 +61,9 @@ func (ih *IpaddrHandler) Auth(r *http.Request,
 		log.Warnf("cannot get ip from request: %s", r.RemoteAddr)
 		return false, "cannot get IP from request"
 	}
+	if st == csp.SignatureTypeSharedKey {
+		return true, "please, do not share the key"
+	}
 	if ih.exist([]byte(ipaddr)) {
 		log.Warnf("ip %s already registered", ipaddr)
 		return false, "already registered"

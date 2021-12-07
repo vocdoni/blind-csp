@@ -7,6 +7,12 @@ import (
 	"github.com/vocdoni/blind-csp/csp"
 )
 
+// AuthHandler is the interface that all CSP handlers should implement.
+// The Auth method must return either the request is valid or not.
+// The current signatureType supported are:
+//  1. ecdsa: performs a plain ECDSA signature over the payload provided by the user
+//  2. blind: performs a blind ECDSA signature over the payload provided by the user
+//  3. sharedkey: performs a plain ECDSA signature over hash(processId)
 type AuthHandler interface {
 	Init(opts ...string) error
 	GetName() string
@@ -17,6 +23,7 @@ type AuthHandler interface {
 	CertificateCheck(subject []byte) bool
 }
 
+// Handlers contains the list of available handlers
 var Handlers = map[string]AuthHandler{
 	"dummy":        &DummyHandler{},
 	"uniqueIp":     &IpaddrHandler{},
@@ -24,6 +31,7 @@ var Handlers = map[string]AuthHandler{
 	"idCatTesting": &IDcatHandler{ForTesting: true},
 }
 
+// HandlersList returns a human friendly string with the list of available handlers
 func HandlersList() string {
 	var h string
 	for k := range Handlers {
