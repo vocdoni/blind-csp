@@ -39,11 +39,20 @@ func (csp *BlindCSP) registerHandlers() error {
 		return err
 	}
 
-	return csp.api.RegisterMethod(
+	if err := csp.api.RegisterMethod(
 		"/processes/{processId}/sharedkey",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
 		csp.sharedKeyReq,
+	); err != nil {
+		return err
+	}
+
+	return csp.api.RegisterMethod(
+		"/health",
+		"GET",
+		bearerstdapi.MethodAccessTypePublic,
+		csp.health,
 	)
 }
 
@@ -157,6 +166,15 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 	} else {
 		return fmt.Errorf("unauthorized")
 	}
+	return ctx.Send(resp.Marshal())
+}
+
+// https://server/v1/auth/health
+
+// health is a simple health check handler.
+func (csp *BlindCSP) health(msg *bearerstdapi.BearerStandardAPIdata,
+	ctx *httprouter.HTTPContext) error {
+	resp := &Message{Response: "Ok."}
 	return ctx.Send(resp.Marshal())
 }
 
