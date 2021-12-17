@@ -83,7 +83,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 			if err != nil {
 				return err
 			}
-			resp.Token = r.Bytes()
+			resp.Token = r.BytesUncompressed() // use Uncompressed for blindsecp256k1-js compatibility
 		case SignatureTypeEthereum:
 			resp.Token = csp.NewRequestKey()
 		default:
@@ -122,7 +122,8 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 	resp := Message{}
 	switch ctx.URLParam("signType") {
 	case SignatureTypeBlind:
-		r, err := blindsecp256k1.NewPointFromBytes(req.Token)
+		// use Uncompressed for blindsecp256k1-js compatibility
+		r, err := blindsecp256k1.NewPointFromBytesUncompressed(req.Token)
 		if err != nil {
 			return err
 		}
