@@ -32,7 +32,7 @@ func main() {
 		home+"/.blindcsp", "datadir for storing files and config")
 	flag.String("domain", "",
 		"domain name for tls with letsencrypt (port 443 must be forwarded)")
-	flag.String("baseURL", "/v1/auth",
+	flag.String("baseURL", "/v1/auth/processes",
 		"base URL path for serving the API")
 	flag.String("logLevel", "info",
 		"log level {debug,info,warn,error}")

@@ -22,7 +22,7 @@ const processIDSize = 32
 
 func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
-		"/processes/{processId}/{signType}/auth",
+		"/{processId}/{signType}/auth",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
 		csp.signatureReq,
@@ -31,7 +31,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	}
 
 	if err := csp.api.RegisterMethod(
-		"/processes/{processId}/{signType}/sign",
+		"/{processId}/{signType}/sign",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
 		csp.signature,
@@ -40,7 +40,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	}
 
 	return csp.api.RegisterMethod(
-		"/processes/{processId}/sharedkey",
+		"/{processId}/sharedkey",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
 		csp.sharedKeyReq,
