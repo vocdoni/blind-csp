@@ -9,16 +9,16 @@ import (
 	"go.vocdoni.io/dvote/httprouter/bearerstdapi"
 )
 
-// SignatureTypeBlind is a secp256k1 blind signature
-const SignatureTypeBlind = "blind"
+const (
+	// SignatureTypeBlind is a secp256k1 blind signature
+	SignatureTypeBlind = "blind"
+	// SignatureTypeEthereum is the standard secp256k1 signature used in Ethereum
+	SignatureTypeEthereum = "ecdsa"
+	// SignatureTypeSharedKey identifier the shared key (common for all users on the same processId)
+	SignatureTypeSharedKey = "sharedkey"
 
-// SignatureTypeEthereum is the standard secp256k1 signature used in Ethereum
-const SignatureTypeEthereum = "ecdsa"
-
-// SignatureTypeSharedKey identifier the shared key (common for all users on the same processId)
-const SignatureTypeSharedKey = "sharedkey"
-
-const processIDSize = 32
+	processIDSize = 32
+)
 
 func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
