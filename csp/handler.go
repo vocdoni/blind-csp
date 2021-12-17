@@ -79,7 +79,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	} else {
 		return fmt.Errorf("unauthorized")
 	}
-	return ctx.Send(resp.Marshal())
+	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
 // https://server/v1/auth/processes/<processId>/<signType>/sign
@@ -126,7 +126,7 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 	default:
 		return fmt.Errorf("invalid signature type")
 	}
-	return ctx.Send(resp.Marshal())
+	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
 // https://server/v1/auth/processes/<processId>/sharedkey
@@ -157,7 +157,7 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 	} else {
 		return fmt.Errorf("unauthorized")
 	}
-	return ctx.Send(resp.Marshal())
+	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
 func trimHex(s string) string {
