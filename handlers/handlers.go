@@ -29,6 +29,7 @@ var Handlers = map[string]AuthHandler{
 	"uniqueIp":     &IpaddrHandler{},
 	"idCat":        &IDcatHandler{ForTesting: false},
 	"idCatTesting": &IDcatHandler{ForTesting: true},
+	"rsa":          &RsaHandler{},
 }
 
 // HandlersList returns a human friendly string with the list of available handlers
