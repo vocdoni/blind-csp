@@ -121,7 +121,7 @@ $ go run . --help
       --baseURL string        base URL path for serving the API (default "/v1/auth")
       --dataDir string        datadir for storing files and config (default "/home/user/.blindcsp")
       --domain string         domain name for tls with letsencrypt (port 443 must be forwarded)
-      --handler string        the authentication handler to use, available: {dummy uniqueIp idCat} (default "dummy")
+      --handler string        the authentication handler to use, available: {dummy uniqueIp idCat rsa} (default "dummy")
       --handlerOpts strings   options that will be passed to the handler
       --key string            private CSP key as hexadecimal string (leave empty for autogenerate)
       --logLevel string       log level {debug,info,warn,error} (default "info")

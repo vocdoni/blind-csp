@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -22,9 +25,9 @@ func TestAuthDataParserErr(t *testing.T) {
 		{"", "", ""},
 		{"", ""},
 		{""},
-		{"___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01", processId, processId},
-		{processId, "___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01", processId},
-		{processId, processId, "___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01"},
+		{"___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01", voterId, signature},
+		{processId, "___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01", signature},
+		{processId, voterId, "___66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01"},
 		{"1234", "1234", "1234"},
 	}
 
@@ -53,14 +56,14 @@ func TestAuthDataParser(t *testing.T) {
 	qt.Assert(t, aa, qt.Equals, voterId)
 
 	bb := hex.EncodeToString(b)
-	qt.Assert(t, bb, qt.Equals, "88e66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab0151bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
+	qt.Assert(t, bb, qt.Equals, processId+voterId)
 
 	cc := hex.EncodeToString(c)
 	qt.Assert(t, cc, qt.Equals, signature)
 }
 
-func TestSignature(t *testing.T) {
-	_, message, signature, err := parseRsaAuthData([]string{
+func TestSignature1(t *testing.T) {
+	_, message, sig, err := parseRsaAuthData([]string{
 		processId,
 		voterId,
 		signature,
@@ -68,7 +71,55 @@ func TestSignature(t *testing.T) {
 	qt.Assert(t, err, qt.IsNil)
 
 	pubK, _ := parseRsaPublicKey()
-	err = validateRsaSignature(pubK, message, signature)
+	err = validateRsaSignature(sig, message, pubK)
+
+	qt.Assert(t, err, qt.IsNil)
+}
+
+func TestSignature2(t *testing.T) {
+	// Manual inputs verified on cyberchef
+	message := []byte("hello")
+	sig, _ := hex.DecodeString("6ff990e9522a18c5ec75576ac2c3477ae2f85c3e51ac659b37fd87ea1e35955c5b5a72af46dc80224968001369c5c022ae3ae304bef4e6ba992685881b5290c684cd25cc2c694215abf79609d049260fe2bf01e54be0e7ceecbe5e31be95fc8678877d634f3577bde74d09074348fa6aad90a8449defb12fda3136b8eeb58148")
+	pubKstr := `-----BEGIN PUBLIC KEY-----
+MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBhoIO6WsbQR6Dr+fyzwdUfrqz4
+G1s4fKvcQR1NqfvGchXHTZZply7P+1NZnO4UX8z7T9VoMRSoS7lM8jdIeOjoyZuk
+0WmNHZXGFeDNhoWtX/IZwy7z/e4qUD+rt1xVU3jjJqkQBSyar1FB+x9tG2qMGPhC
+4cKjDWyJtRlopwbtAgMBAAE=
+-----END PUBLIC KEY-----`
+
+	// Using the first one available so far
+	block, _ := pem.Decode([]byte(pubKstr))
+
+	parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	qt.Assert(t, err, qt.IsNil)
+
+	pubK := parsedKey.(*rsa.PublicKey)
+
+	err = validateRsaSignature(sig, message, pubK)
+
+	qt.Assert(t, err, qt.IsNil)
+}
+
+func TestSignature3(t *testing.T) {
+	// Manual inputs verified with openssl
+	message, _ := hex.DecodeString("88e66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab0151bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
+	sig, _ := hex.DecodeString("538cd5175e9b03f01dcb7ec725202a268fbbb60355b570c61938e46a5c6de8820d3a567402e785cdc70251c98c2671d9c02a90cafd8b510e2241f978d3ee4c07dc1b67c7fd2313baf1e50a2655ae6c88aa61a4e31243854f8519abfb7c70c33ba0048a34660a8e93d37449b5ed93ef61291ff797e250409ba53119bc4e731f17")
+	pubKstr := `-----BEGIN PUBLIC KEY-----
+MIGeMA0GCSqGSIb3DQEBAQUAA4GMADCBiAKBgHBhoIO6WsbQR6Dr+fyzwdUfrqz4
+G1s4fKvcQR1NqfvGchXHTZZply7P+1NZnO4UX8z7T9VoMRSoS7lM8jdIeOjoyZuk
+0WmNHZXGFeDNhoWtX/IZwy7z/e4qUD+rt1xVU3jjJqkQBSyar1FB+x9tG2qMGPhC
+4cKjDWyJtRlopwbtAgMBAAE=
+-----END PUBLIC KEY-----`
+
+	// Using the first one available so far
+	block, _ := pem.Decode([]byte(pubKstr))
+
+	parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	qt.Assert(t, err, qt.IsNil)
+
+	pubK := parsedKey.(*rsa.PublicKey)
+
+	err = validateRsaSignature(sig, message, pubK)
 
 	qt.Assert(t, err, qt.IsNil)
 }

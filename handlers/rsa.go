@@ -91,7 +91,7 @@ func (rh *RsaHandler) Auth(r *http.Request,
 	}
 
 	// Verify signature
-	if err := validateRsaSignature(rsaPublickey, message, signature); err != nil {
+	if err := validateRsaSignature(signature, message, rsaPublickey); err != nil {
 		log.Warnf("invalid signature: %s\n", err)
 		return false, "invalid signature"
 	}
@@ -129,6 +129,8 @@ func (rh *RsaHandler) Certificates() [][]byte {
 	return nil
 }
 
+// Internal data handlers
+
 func parseRsaPublicKey() (*rsa.PublicKey, error) {
 	if len(rsaPubKeys) < 1 {
 		return nil, errors.Errorf("no public keys")
@@ -158,6 +160,8 @@ func parseRsaPublicKey() (*rsa.PublicKey, error) {
 	return parsedKey.(*rsa.PublicKey), nil
 }
 
+// parseRsaAuthData transforms the incoming authData string array and returns a digested output
+// of the relevant parameters for the handler
 func parseRsaAuthData(authData []string) ([]byte, []byte, []byte, error) {
 	if len(authData) != 3 {
 		log.Warnf("invalid params (3 items expected)")
@@ -177,20 +181,20 @@ func parseRsaAuthData(authData []string) ([]byte, []byte, []byte, error) {
 	}
 
 	voterIdBytes, err := hex.DecodeString(voterId)
-	if err != nil {
+	if err != nil || len(voterIdBytes) != 32 {
 		log.Warnf("invalid voterId: %s", voterId)
 		return nil, nil, nil, errors.Errorf("invalid voterId")
 	}
 
 	message, err := hex.DecodeString(processId + voterId)
-	if err != nil {
+	if err != nil || len(message) != 32 {
 		// By discard, only processId can be invalid
 		log.Warnf("invalid electionId: %s", processId)
 		return nil, nil, nil, errors.Errorf("invalid electionId")
 	}
 
 	signature, _ := hex.DecodeString(authData[2])
-	if err != nil {
+	if err != nil || len(signature) == 0 {
 		log.Warnf("invalid signature: %s", signature)
 		return nil, nil, nil, errors.Errorf("invalid voterId")
 	}
@@ -198,7 +202,9 @@ func parseRsaAuthData(authData []string) ([]byte, []byte, []byte, error) {
 	return voterIdBytes, message, signature, nil
 }
 
-func validateRsaSignature(rsaPublicKey *rsa.PublicKey, message []byte, signature []byte) error {
+// validateRsaSignature hashes the given message and verifies the signature against
+// the given public key
+func validateRsaSignature(signature []byte, message []byte, rsaPublicKey *rsa.PublicKey) error {
 	msgHash := sha256.Sum256(message)
 
 	return rsa.VerifyPKCS1v15(rsaPublicKey, crypto.SHA256, msgHash[:], signature)
