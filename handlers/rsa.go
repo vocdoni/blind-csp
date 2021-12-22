@@ -187,7 +187,7 @@ func parseRsaAuthData(authData []string) ([]byte, []byte, []byte, error) {
 	}
 
 	message, err := hex.DecodeString(processId + voterId)
-	if err != nil || len(message) != 32 {
+	if err != nil || len(message) != 32+32 {
 		// By discard, only processId can be invalid
 		log.Warnf("invalid electionId: %s", processId)
 		return nil, nil, nil, errors.Errorf("invalid electionId")
