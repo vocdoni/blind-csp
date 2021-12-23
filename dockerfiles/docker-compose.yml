@@ -1,0 +1,54 @@
+version: "3.7"
+
+services:
+  blind-csp:
+    image: ghcr.io/vocdoni/blind-csp:${BLINDCA_TAG:-master}
+    env_file: ".env"
+    sysctls:
+      net.core.somaxconn: 8128
+    volumes:
+      - blind-csp:/app/data
+      - "./handlerFiles:/handlerFiles"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.blind-csp.rule=Host(`${SERVER_NAME}`)"
+      - "traefik.http.routers.blind-csp.entrypoints=websecure"
+      - "traefik.http.routers.blind-csp.tls.certresolver=le"
+      - "traefik.http.routers.blind-csp.service=blind-csp"
+      - "traefik.http.services.blind-csp.loadbalancer.server.port=5000"
+
+  traefik:
+    image: traefik:2.5
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    command:
+      - "--log.level=DEBUG"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.le.acme.httpchallenge=true"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.le.acme.email=email@foo.bar"
+      - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
+    restart: always
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - com.centurylinklabs.watchtower.enable="false"
+    command: --interval 30 --cleanup
+
+
+volumes:
+  blind-csp: {}
+  traefik: {}
+
