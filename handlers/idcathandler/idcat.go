@@ -1,4 +1,4 @@
-package handlers
+package idcathandler
 
 import (
 	"crypto/x509"

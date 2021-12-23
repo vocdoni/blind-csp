@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/handlers/idcathandler"
+	"github.com/vocdoni/blind-csp/handlers/rsahandler"
 )
 
 // AuthHandler is the interface that all CSP handlers should implement.
@@ -27,9 +29,9 @@ type AuthHandler interface {
 var Handlers = map[string]AuthHandler{
 	"dummy":        &DummyHandler{},
 	"uniqueIp":     &IpaddrHandler{},
-	"idCat":        &IDcatHandler{ForTesting: false},
-	"idCatTesting": &IDcatHandler{ForTesting: true},
-	"rsa":          &RsaHandler{},
+	"idCat":        &idcathandler.IDcatHandler{ForTesting: false},
+	"idCatTesting": &idcathandler.IDcatHandler{ForTesting: true},
+	"rsa":          &rsahandler.RsaHandler{},
 }
 
 // HandlersList returns a human friendly string with the list of available handlers

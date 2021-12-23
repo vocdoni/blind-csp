@@ -1,6 +1,7 @@
-package handlers
+package rsahandler
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -61,7 +62,7 @@ func (rh *RsaHandler) GetName() string {
 // Takes one argument for persistent data directory.
 func (rh *RsaHandler) Init(opts ...string) (err error) {
 	if len(opts) != 2 {
-		return fmt.Errorf("RSA Init received %d items in opts", len(opts))
+		return fmt.Errorf("rsa handler requires a file path with the validation RSA key")
 	}
 
 	rh.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
@@ -74,33 +75,23 @@ func (rh *RsaHandler) Init(opts ...string) (err error) {
 		return err
 	}
 
-	pubK, err := parseRsaPublicKey(string(pubKeyBytes))
-	if err != nil {
-		return err
-	}
-	rh.rsaPubKey = pubK
-
+	rh.rsaPubKey, err = parseRsaPublicKey(string(pubKeyBytes))
 	return err
 }
 
 // Auth is the handler for the rsa handler
 func (rh *RsaHandler) Auth(r *http.Request,
 	ca *csp.Message, pid []byte, st string) (bool, string) {
-	log.Infof(r.UserAgent())
-
 	authData, err := parseRsaAuthData(ca.AuthData)
 	if err != nil {
 		return false, err.Error()
 	}
-
-	pidStr := hex.EncodeToString(pid)
-	if pidStr != ca.AuthData[0] {
+	if !bytes.Equal(pid, authData.ProcessId) {
 		return false, "the electionId does not match the URL one"
 	}
 
 	// Verify signature
 	if err := validateRsaSignature(authData.Signature, authData.Message, rh.rsaPubKey); err != nil {
-		log.Warnf("invalid signature: %v", err)
 		return false, "invalid signature"
 	}
 
@@ -108,16 +99,14 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return true, "please, do not share the key"
 	}
 	if rh.exist(authData.VoterId) {
-		log.Warnf("%s already registered", authData.VoterId)
 		return false, "already registered"
 	}
 
 	err = rh.addKey(authData.VoterId, nil)
 	if err != nil {
-		log.Warnf("could not add key %x", authData.VoterId)
 		return false, "could not add key"
 	}
-	log.Infof("new user registered with id %s", authData.VoterId)
+	log.Infof("new user registered with id %x", authData.VoterId)
 
 	return true, ""
 }
@@ -163,7 +152,8 @@ func parseRsaPublicKey(pubKey string) (*rsa.PublicKey, error) {
 	return parsedKey.(*rsa.PublicKey), nil
 }
 
-type RsaAuthData struct {
+type rsaAuthData struct {
+	ProcessId []byte
 	VoterId   []byte
 	Message   []byte
 	Signature []byte
@@ -171,43 +161,44 @@ type RsaAuthData struct {
 
 // parseRsaAuthData transforms the incoming authData string array and returns a digested output
 // of the relevant parameters for the handler
-func parseRsaAuthData(authData []string) (*RsaAuthData, error) {
-	result := new(RsaAuthData)
-
+func parseRsaAuthData(authData []string) (*rsaAuthData, error) {
 	if len(authData) != 3 {
 		return nil, fmt.Errorf("invalid params (3 items expected)")
 	}
 
 	// Catenate hex
 	processId := authData[0]
-	if len(processId) != ELECTION_ID_STR_LENGTH {
+	if len(authData[0]) != ELECTION_ID_STR_LENGTH {
 		return nil, fmt.Errorf("invalid electionId")
+	}
+	processIdBytes, err := hex.DecodeString(authData[0])
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode processId")
 	}
 	voterId := authData[1]
 	if len(voterId) != VOTER_ID_STR_LENGTH {
 		return nil, fmt.Errorf("invalid voterId")
 	}
-
 	voterIdBytes, err := hex.DecodeString(voterId)
 	if err != nil || len(voterIdBytes) != VOTER_ID_STR_LENGTH/2 {
 		return nil, fmt.Errorf("invalid voterId: %w", err)
 	}
-
 	message, err := hex.DecodeString(processId + voterId)
 	if err != nil || len(message) != SIGNED_MESSAGE_BYTES_LENGTH {
 		// By discard, only processId can be invalid
 		return nil, fmt.Errorf("invalid electionId: %w", err)
 	}
-
 	signature, err := hex.DecodeString(authData[2])
 	if err != nil || len(signature) == 0 {
 		return nil, fmt.Errorf("invalid voterId")
 	}
 
-	result.VoterId = voterIdBytes
-	result.Message = message
-	result.Signature = signature
-	return result, nil
+	return &rsaAuthData{
+		ProcessId: processIdBytes,
+		VoterId:   voterIdBytes,
+		Message:   message,
+		Signature: signature,
+	}, nil
 }
 
 // validateRsaSignature hashes the given message and verifies the signature against
