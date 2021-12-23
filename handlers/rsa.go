@@ -93,6 +93,11 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return false, err.Error()
 	}
 
+	pidStr := hex.EncodeToString(pid)
+	if pidStr != ca.AuthData[0] {
+		return false, "the electionId does not match the URL one"
+	}
+
 	// Verify signature
 	if err := validateRsaSignature(authData.Signature, authData.Message, rh.rsaPubKey); err != nil {
 		log.Warnf("invalid signature: %v", err)
