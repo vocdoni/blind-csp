@@ -141,7 +141,6 @@ func parseRsaPublicKey() (*rsa.PublicKey, error) {
 	// Using the first one available so far
 	block, rest := pem.Decode([]byte(rsaPubKeys[0]))
 	if len(rest) > 0 {
-		log.Warnf("failed to parse the public key")
 		return nil, fmt.Errorf("failed to parse the public key")
 	}
 
@@ -154,7 +153,6 @@ func parseRsaPublicKey() (*rsa.PublicKey, error) {
 	case *rsa.PublicKey:
 		break
 	default:
-		log.Warnf("cannot parse the public key")
 		return nil, fmt.Errorf("cannot parse the public key")
 	}
 	return parsedKey.(*rsa.PublicKey), nil
@@ -172,38 +170,32 @@ func parseRsaAuthData(authData []string) (*RsaAuthData, error) {
 	result := new(RsaAuthData)
 
 	if len(authData) != 3 {
-		log.Warnf("invalid params (3 items expected)")
 		return nil, fmt.Errorf("invalid params (3 items expected)")
 	}
 
 	// Catenate hex
 	processId := authData[0]
 	if len(processId) != ELECTION_ID_STR_LENGTH {
-		log.Warnf("invalid electionId")
 		return nil, fmt.Errorf("invalid electionId")
 	}
 	voterId := authData[1]
 	if len(voterId) != VOTER_ID_STR_LENGTH {
-		log.Warnf("invalid voterId")
 		return nil, fmt.Errorf("invalid voterId")
 	}
 
 	voterIdBytes, err := hex.DecodeString(voterId)
 	if err != nil || len(voterIdBytes) != VOTER_ID_STR_LENGTH/2 {
-		log.Warnf("invalid voterId: %s", voterId)
 		return nil, fmt.Errorf("invalid voterId: %w", err)
 	}
 
 	message, err := hex.DecodeString(processId + voterId)
 	if err != nil || len(message) != SIGNED_MESSAGE_BYTES_LENGTH {
 		// By discard, only processId can be invalid
-		log.Warnf("invalid electionId: %s", processId)
 		return nil, fmt.Errorf("invalid electionId: %w", err)
 	}
 
 	signature, err := hex.DecodeString(authData[2])
 	if err != nil || len(signature) == 0 {
-		log.Warnf("invalid signature: %s", signature)
 		return nil, fmt.Errorf("invalid voterId")
 	}
 
