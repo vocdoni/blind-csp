@@ -8,5 +8,5 @@ require (
 	github.com/frankban/quicktest v1.14.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.8.1
-	go.vocdoni.io/dvote v1.0.4-0.20211217145755-e486f34183de
+	go.vocdoni.io/dvote v1.0.4-0.20211222170021-1a8914039ad0
 )

@@ -22,6 +22,15 @@ const (
 
 func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
+		"/ping",
+		"GET",
+		bearerstdapi.MethodAccessTypePublic,
+		csp.ping,
+	); err != nil {
+		return err
+	}
+
+	if err := csp.api.RegisterMethod(
 		"/{processId}/{signType}/auth",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
@@ -157,6 +166,15 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 	} else {
 		return fmt.Errorf("unauthorized")
 	}
+	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+}
+
+// https://server/v1/auth/ping
+
+// ping is a simple health check handler.
+func (csp *BlindCSP) ping(msg *bearerstdapi.BearerStandardAPIdata,
+	ctx *httprouter.HTTPContext) error {
+	resp := &Message{Response: "Ok."}
 	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
