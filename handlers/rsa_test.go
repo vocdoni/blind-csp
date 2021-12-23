@@ -26,10 +26,19 @@ const (
 		"efbfbdefbfbd0b2d6322efbfbd3fefbfbd1a0213efbfbd0653efbfbd78efbfbdefbfbd58ef" +
 		"bfbd2a69c585efbfbdefbfbd61276aefbfbdefbfbd2defbfbdefbfbd091321efbfbdefbfbd" +
 		"efbfbdefbfbdefbfbd0638efbfbd612341efbfbdefbfbd183eefbfbdefbfbdefbfbdefbfbd281e13"
+	rsaPubKey = `-----BEGIN PUBLIC KEY-----
+MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEApc2hU8zulyJzdQE5IPAv
+B2BgveoZmYUmPEjSb4DViBoATK1hlaY8Psp5vj0H0L4tM8AlXRhPQlECibhgccig
+xQFcG7CLXiSAn7c4XoR+J2SCgx76Fwl9L3WhQigxyKsmpGIqubseydmwfJi4TBnq
+qnX4prsW1PT8GpG35t8Qi8PtkXVGmL7G5pkPXtF0hRzKSfhzsDBbJsl6Jk/Rn5Id
+pKHXL22FdbE9fGzIlW2a6Zdd0b0Q3FZBMnWLSwo0OwBtC/qNnDTCzboig9djiFmA
+yuj8jVhsy050nI72TAONjGKi+xn4lYfdOV2k6TyvpRHfylHouK2v0/bktSlkFI0y
+nwIBAw==
+-----END PUBLIC KEY-----`
 )
 
 func TestPublicKey(t *testing.T) {
-	pubK, err := parseRsaPublicKey()
+	pubK, err := parseRsaPublicKey(rsaPubKey)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, pubK, qt.IsNotNil)
 }

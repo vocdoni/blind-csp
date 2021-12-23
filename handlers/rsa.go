@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -24,22 +25,11 @@ const (
 	SIGNED_MESSAGE_BYTES_LENGTH = 64
 )
 
-var rsaPubKeys = []string{
-	`-----BEGIN PUBLIC KEY-----
-MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEApc2hU8zulyJzdQE5IPAv
-B2BgveoZmYUmPEjSb4DViBoATK1hlaY8Psp5vj0H0L4tM8AlXRhPQlECibhgccig
-xQFcG7CLXiSAn7c4XoR+J2SCgx76Fwl9L3WhQigxyKsmpGIqubseydmwfJi4TBnq
-qnX4prsW1PT8GpG35t8Qi8PtkXVGmL7G5pkPXtF0hRzKSfhzsDBbJsl6Jk/Rn5Id
-pKHXL22FdbE9fGzIlW2a6Zdd0b0Q3FZBMnWLSwo0OwBtC/qNnDTCzboig9djiFmA
-yuj8jVhsy050nI72TAONjGKi+xn4lYfdOV2k6TyvpRHfylHouK2v0/bktSlkFI0y
-nwIBAw==
------END PUBLIC KEY-----`,
-}
-
 // RsaHandler is a handler that allows only 1 registration for IP
 type RsaHandler struct {
-	kv       db.Database
-	keysLock sync.RWMutex
+	kv        db.Database
+	keysLock  sync.RWMutex
+	rsaPubKey *rsa.PublicKey
 }
 
 func (rh *RsaHandler) addKey(index, value []byte) error {
@@ -70,7 +60,26 @@ func (rh *RsaHandler) GetName() string {
 // Init initializes the handler.
 // Takes one argument for persistent data directory.
 func (rh *RsaHandler) Init(opts ...string) (err error) {
+	if len(opts) != 2 {
+		return fmt.Errorf("RSA Init received %d items in opts", len(opts))
+	}
+
 	rh.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
+	if err != nil {
+		return err
+	}
+
+	pubKeyBytes, err := os.ReadFile(opts[1])
+	if err != nil {
+		return err
+	}
+
+	pubK, err := parseRsaPublicKey(string(pubKeyBytes))
+	if err != nil {
+		return err
+	}
+	rh.rsaPubKey = pubK
+
 	return err
 }
 
@@ -84,13 +93,8 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return false, err.Error()
 	}
 
-	rsaPublickey, err := parseRsaPublicKey()
-	if err != nil {
-		return false, err.Error()
-	}
-
 	// Verify signature
-	if err := validateRsaSignature(authData.Signature, authData.Message, rsaPublickey); err != nil {
+	if err := validateRsaSignature(authData.Signature, authData.Message, rh.rsaPubKey); err != nil {
 		log.Warnf("invalid signature: %v", err)
 		return false, "invalid signature"
 	}
@@ -134,12 +138,8 @@ func (rh *RsaHandler) Certificates() [][]byte {
 
 // Internal data handlers
 
-func parseRsaPublicKey() (*rsa.PublicKey, error) {
-	if len(rsaPubKeys) < 1 {
-		return nil, fmt.Errorf("no public keys")
-	}
-	// Using the first one available so far
-	block, rest := pem.Decode([]byte(rsaPubKeys[0]))
+func parseRsaPublicKey(pubKey string) (*rsa.PublicKey, error) {
+	block, rest := pem.Decode([]byte(pubKey))
 	if len(rest) > 0 {
 		return nil, fmt.Errorf("failed to parse the public key")
 	}
