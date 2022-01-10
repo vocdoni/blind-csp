@@ -9,6 +9,7 @@ import (
 	blind "github.com/arnaucube/go-blindsecp256k1"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	vocdonicrypto "go.vocdoni.io/dvote/crypto/ethereum"
+	"go.vocdoni.io/dvote/crypto/saltedkey"
 )
 
 const (
@@ -50,7 +51,7 @@ func NewSaltedKey(privKey string) (*SaltedKey, error) {
 
 // SignECDSA returns the signature payload of message (which will be hashed)
 // using the provided Salt.
-func (sk *SaltedKey) SignECDSA(salt [SaltSize]byte,
+func (sk *SaltedKey) SignECDSA(salt [saltedkey.SaltSize]byte,
 	msg []byte) ([]byte, error) {
 	esk := new(vocdonicrypto.SignKeys)
 	if err := esk.AddHexKey(fmt.Sprintf("%x", sk.rootKey.Bytes())); err != nil {
@@ -66,7 +67,7 @@ func (sk *SaltedKey) SignECDSA(salt [SaltSize]byte,
 
 // SignBlind returns the signature payload of a blinded message using the provided Salt.
 // The Secretk number needs to be also provided.
-func (sk *SaltedKey) SignBlind(salt [SaltSize]byte, msgBlinded []byte,
+func (sk *SaltedKey) SignBlind(salt [saltedkey.SaltSize]byte, msgBlinded []byte,
 	secretK *big.Int) ([]byte, error) {
 	if secretK == nil {
 		return nil, fmt.Errorf("secretK is nil")
@@ -111,7 +112,7 @@ func SaltBlindPubKey(pubKey *blind.PublicKey, salt [SaltSize]byte) (*blind.Publi
 }
 
 // SaltECDSAPubKey returns the salted plain public key of pubKey applying the salt.
-func SaltECDSAPubKey(pubKey *ecdsa.PublicKey, salt [SaltSize]byte) ([]byte, error) {
+func SaltECDSAPubKey(pubKey *ecdsa.PublicKey, salt [saltedkey.SaltSize]byte) ([]byte, error) {
 	if pubKey == nil {
 		return nil, fmt.Errorf("public key is nil")
 	}

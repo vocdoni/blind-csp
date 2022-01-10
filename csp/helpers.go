@@ -49,7 +49,11 @@ func (csp *BlindCSP) PubKeyECDSA(processID []byte) string {
 // NewBlindRequestKey generates a new request key for blinding a content on the client side.
 // It returns SignerR and SignerQ values.
 func (csp *BlindCSP) NewBlindRequestKey() *blind.Point {
-	k, signerR := blind.NewRequestParameters()
+	k, signerR, err := blind.NewRequestParameters()
+	if err != nil {
+		log.Warn(err)
+		return nil
+	}
 	index := signerR.X.String() + signerR.Y.String()
 	if err := csp.addKey(index, k); err != nil {
 		log.Warn(err)
