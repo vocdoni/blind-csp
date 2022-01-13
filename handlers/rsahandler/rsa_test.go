@@ -11,21 +11,16 @@ import (
 )
 
 const (
-	processId = "88e66cdf1cac93ded9c8d13b7cc74601c7f25bf50d392549e1146eaa8429ab01"
+	processId = "11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d422"
 	voterId   = "51bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de"
-	signature = "39143730467aefbfbdefbfbdefbfbdefbfbd77efbfbdefbfbdefbfbdefbfbd54" +
-		"757eefbfbd69efbfbd5709efbfbd1e65efbfbd71efbfbdefbfbd55efbfbd1e0eefbfbdefbf" +
-		"bdefbfbd603941efbfbd686cefbfbdefbfbd49470cefbfbdefbfbd0befbfbd48efbfbd20ef" +
-		"bfbd48344425efbfbdefbfbdefbfbd6c184058efbfbdefbfbdefbfbd45efbfbdefbfbd133e" +
-		"efbfbd1731724a2829dcb26fefbfbdefbfbd1125efbfbdefbfbd77efbfbdefbfbd49efbfbd" +
-		"56efbfbd05efbfbdefbfbdefbfbd77efbfbdefbfbd2e64efbfbdefbfbdefbfbdefbfbdefbf" +
-		"bdefbfbdefbfbdefbfbd3f431fefbfbdefbfbdefbfbd241e42efbfbdefbfbdefbfbd35efbf" +
-		"bd555ec3bbd9bc59efbfbdefbfbdefbfbd4cefbfbdefbfbd58e1889defbfbdefbfbd2b13ef" +
-		"bfbdefbfbdefbfbdefbfbd4b45181d78efbfbdefbfbddbabefbfbd7e18efbfbd7fefbfbdef" +
-		"bfbd3cefbfbdefbfbd21efbfbd61efbfbd12efbfbd39efbfbd0aefbfbdefbfbd42417b586f" +
-		"efbfbdefbfbd0b2d6322efbfbd3fefbfbd1a0213efbfbd0653efbfbd78efbfbdefbfbd58ef" +
-		"bfbd2a69c585efbfbdefbfbd61276aefbfbdefbfbd2defbfbdefbfbd091321efbfbdefbfbd" +
-		"efbfbdefbfbdefbfbd0638efbfbd612341efbfbdefbfbd183eefbfbdefbfbdefbfbdefbfbd281e13"
+	signature = "7c7006d16993ab0665de9284e3d0eb9c0ce9995b3073ef6678cfe2ee635ab948" +
+		"1ba45d450f4e8b0b15d39f5b42ea5bff886d18775abe36b6e1c9d92bff09161b" +
+		"40955a74534b2a75b9b9138c636a503f5c79c4510bcaa380f7fe44997709eb3f" +
+		"1363459159169749b2443a34b7e73cbef34f3c3812804256cabf0aa3ab822a63" +
+		"caa281bd0820696b281c2f95ed49f1ef5650ff83a392aca06e98c97bdbd20d67" +
+		"8e82d826f7774a378292f0c2de08dc1209fb260545fe6342d4eaed612b938b92" +
+		"32d423109eb4d8ab98e89612ad08c72362c94c48bf0f2a163d6c21e937c83a90" +
+		"002cf4d8c5181af0c7e7a94fb0b5af7bd629e17546c6260c862d90fe5a90e2b0"
 	rsaPubKey = `-----BEGIN PUBLIC KEY-----
 MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEApc2hU8zulyJzdQE5IPAv
 B2BgveoZmYUmPEjSb4DViBoATK1hlaY8Psp5vj0H0L4tM8AlXRhPQlECibhgccig
@@ -83,19 +78,28 @@ func TestAuthDataParser(t *testing.T) {
 	qt.Assert(t, cc, qt.Equals, signature)
 }
 
-// func TestSignature1(t *testing.T) {
-// 	res, err := parseRsaAuthData([]string{
-// 		processId,
-// 		voterId,
-// 		signature,
-// 	})
-// 	qt.Assert(t, err, qt.IsNil)
+func TestSignature1(t *testing.T) {
+	// res, err := parseRsaAuthData([]string{
+	// 	processId,
+	// 	voterId,
+	// 	signature,
+	// })
+	// qt.Assert(t, err, qt.IsNil)
 
-// 	pubK, _ := parseRsaPublicKey()
-// 	err = validateRsaSignature(res.Signature, res.Message, pubK)
+	// pubK, _ := parseRsaPublicKey(rsaPubKey)
+	// err = validateRsaSignature(res.Signature, res.Message, pubK)
 
-// 	qt.Assert(t, err, qt.IsNil)
-// }
+	// qt.Assert(t, err, qt.IsNil)
+
+	// Plain message
+	pubK, _ := parseRsaPublicKey(rsaPubKey)
+	// TODO: use an hex-based payload and not as a raw text
+	msg := []byte("11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d42251bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
+	sig, _ := hex.DecodeString(signature)
+	err := validateRsaSignature(sig, msg, pubK)
+
+	qt.Assert(t, err, qt.IsNil)
+}
 
 func TestSignature2(t *testing.T) {
 	// Manual inputs verified on cyberchef
