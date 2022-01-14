@@ -13,14 +13,14 @@ import (
 const (
 	processId = "11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d422"
 	voterId   = "51bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de"
-	signature = "7c7006d16993ab0665de9284e3d0eb9c0ce9995b3073ef6678cfe2ee635ab948" +
-		"1ba45d450f4e8b0b15d39f5b42ea5bff886d18775abe36b6e1c9d92bff09161b" +
-		"40955a74534b2a75b9b9138c636a503f5c79c4510bcaa380f7fe44997709eb3f" +
-		"1363459159169749b2443a34b7e73cbef34f3c3812804256cabf0aa3ab822a63" +
-		"caa281bd0820696b281c2f95ed49f1ef5650ff83a392aca06e98c97bdbd20d67" +
-		"8e82d826f7774a378292f0c2de08dc1209fb260545fe6342d4eaed612b938b92" +
-		"32d423109eb4d8ab98e89612ad08c72362c94c48bf0f2a163d6c21e937c83a90" +
-		"002cf4d8c5181af0c7e7a94fb0b5af7bd629e17546c6260c862d90fe5a90e2b0"
+	signature = "9076e34e9e0cf2d4071829985dc525da186686af6084ec12105083d42601099a" +
+		"b2cf44f4eeb3a1897d9fbf4254a6fe94b44e9dd267adfc7c3b2fee32af88caef" +
+		"0630ca5852043d4914d3b66aaaddab6b381338d058ba727a2e819e9c09318483" +
+		"088d11d8fa3ce5d6e0c333add6866926b7fbcdc1b1c9754c22db85b896bb5c21" +
+		"5fd8461ec34204a3524c655548c0b46a7a7178dbae8c6b8c84570459ed439e25" +
+		"ecfcf2fe22f9237e8f9f90d55e65a179e5f5a6749b0874182a37015e08bd2376" +
+		"35ca586231370b46e53dc0d1730f8fa9a08bf428ab9b8a083d3035c86727b648" +
+		"7e5796b994977a3d5e1692ab45dd0068bc71e9446ae897f1fbe3ab9c95081c81"
 	rsaPubKey = `-----BEGIN PUBLIC KEY-----
 MIIBIDANBgkqhkiG9w0BAQEFAAOCAQ0AMIIBCAKCAQEApc2hU8zulyJzdQE5IPAv
 B2BgveoZmYUmPEjSb4DViBoATK1hlaY8Psp5vj0H0L4tM8AlXRhPQlECibhgccig
@@ -79,24 +79,23 @@ func TestAuthDataParser(t *testing.T) {
 }
 
 func TestSignature1(t *testing.T) {
-	// res, err := parseRsaAuthData([]string{
-	// 	processId,
-	// 	voterId,
-	// 	signature,
-	// })
-	// qt.Assert(t, err, qt.IsNil)
+	// Raw inputs
+	res, err := parseRsaAuthData([]string{
+		processId,
+		voterId,
+		signature,
+	})
+	qt.Assert(t, err, qt.IsNil)
 
-	// pubK, _ := parseRsaPublicKey(rsaPubKey)
-	// err = validateRsaSignature(res.Signature, res.Message, pubK)
-
-	// qt.Assert(t, err, qt.IsNil)
-
-	// Plain message
 	pubK, _ := parseRsaPublicKey(rsaPubKey)
-	// TODO: use an hex-based payload and not as a raw text
-	msg := []byte("11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d42251bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
+	err = validateRsaSignature(res.Signature, res.Message, pubK)
+
+	qt.Assert(t, err, qt.IsNil)
+
+	// Digested message
+	msg, _ := hex.DecodeString("11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d42251bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
 	sig, _ := hex.DecodeString(signature)
-	err := validateRsaSignature(sig, msg, pubK)
+	err = validateRsaSignature(sig, msg, pubK)
 
 	qt.Assert(t, err, qt.IsNil)
 }
