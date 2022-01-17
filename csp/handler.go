@@ -86,7 +86,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 			return fmt.Errorf("invalid signature type")
 		}
 	} else {
-		return fmt.Errorf("unauthorized")
+		return fmt.Errorf("unauthorized: %s", resp.Response)
 	}
 	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
