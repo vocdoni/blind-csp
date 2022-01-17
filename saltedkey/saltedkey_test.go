@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/arnaucube/go-blindsecp256k1"
 	blind "github.com/arnaucube/go-blindsecp256k1"
 	qt "github.com/frankban/quicktest"
 	"go.vocdoni.io/dvote/crypto/ethereum"
@@ -50,7 +49,7 @@ func TestBlindsaltedKey(t *testing.T) {
 	k, signerR := blind.NewRequestParameters()
 
 	// Client: blinds the message with R (from server). Keeps userSecretData for unblinding
-	msgBlinded, userSecretData, err := blindsecp256k1.Blind(new(big.Int).SetBytes(msgHash), signerR)
+	msgBlinded, userSecretData, err := blind.Blind(new(big.Int).SetBytes(msgHash), signerR)
 	qt.Assert(t, err, qt.IsNil)
 
 	// Server: performs the signature with the commont salt using secretK

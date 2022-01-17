@@ -93,7 +93,8 @@ func TestSignature1(t *testing.T) {
 	qt.Assert(t, err, qt.IsNil)
 
 	// Digested message
-	msg, _ := hex.DecodeString("11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d42251bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
+	msg, _ := hex.DecodeString("11898e5652ccadf0d2a84a1f462d9f29a123bdb21315e92c59c56b0bb1b7d422" +
+		"51bc804fdb2122c0a8b221bf5b3683395151f30ac6e86d014bb38854eff483de")
 	sig, _ := hex.DecodeString(signature)
 	err = validateRsaSignature(sig, msg, pubK)
 
