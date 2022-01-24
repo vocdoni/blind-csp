@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	ELECTION_ID_STR_LENGTH      = 64
-	VOTER_ID_STR_LENGTH         = 64
-	SIGNED_MESSAGE_BYTES_LENGTH = 64
+	electionIDStrLength      = 64
+	voterIDStrLength         = 64
+	signedMessageBytesLength = 64
 )
 
 // RsaHandler is a handler that allows only 1 registration for IP
@@ -33,23 +33,42 @@ type RsaHandler struct {
 	rsaPubKey *rsa.PublicKey
 }
 
-func (rh *RsaHandler) addKey(index, value []byte) error {
+func (rh *RsaHandler) addKey(voterID, processID []byte) error {
 	rh.keysLock.Lock()
 	defer rh.keysLock.Unlock()
 	tx := rh.kv.WriteTx()
 	defer tx.Discard()
-	if err := tx.Set(index, value); err != nil {
+	var key bytes.Buffer
+	_, err := key.Write(processID)
+	if err != nil {
+		return err
+	}
+	_, err = key.Write(voterID)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Set(key.Bytes(), nil); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (rh *RsaHandler) exist(index []byte) bool {
+func (rh *RsaHandler) exist(voterID, processID []byte) bool {
 	rh.keysLock.RLock()
 	defer rh.keysLock.RUnlock()
-	tx := rh.kv.WriteTx()
+	tx := rh.kv.ReadTx()
 	defer tx.Discard()
-	_, err := tx.Get(index)
+	var key bytes.Buffer
+	_, err := key.Write(processID)
+	if err != nil {
+		return false
+	}
+	_, err = key.Write(voterID)
+	if err != nil {
+		return false
+	}
+	_, err = tx.Get(key.Bytes())
 	return err == nil
 }
 
@@ -87,7 +106,7 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return false, err.Error()
 	}
 	if !bytes.Equal(pid, authData.ProcessId) {
-		return false, "the electionId does not match the URL one"
+		return false, "the provided electionId does not match the URL one"
 	}
 
 	// Verify signature
@@ -98,7 +117,8 @@ func (rh *RsaHandler) Auth(r *http.Request,
 	if st == csp.SignatureTypeSharedKey {
 		return true, "please, do not share the key"
 	}
-	if rh.exist(authData.VoterId) {
+
+	if rh.exist(authData.VoterId, authData.ProcessId) {
 		return false, "already registered"
 	}
 
@@ -168,7 +188,7 @@ func parseRsaAuthData(authData []string) (*rsaAuthData, error) {
 
 	// Catenate hex
 	processId := authData[0]
-	if len(authData[0]) != ELECTION_ID_STR_LENGTH {
+	if len(authData[0]) != electionIDStrLength {
 		return nil, fmt.Errorf("invalid electionId")
 	}
 	processIdBytes, err := hex.DecodeString(authData[0])
@@ -176,15 +196,15 @@ func parseRsaAuthData(authData []string) (*rsaAuthData, error) {
 		return nil, fmt.Errorf("cannot decode processId")
 	}
 	voterId := authData[1]
-	if len(voterId) != VOTER_ID_STR_LENGTH {
+	if len(voterId) != voterIDStrLength {
 		return nil, fmt.Errorf("invalid voterId")
 	}
 	voterIdBytes, err := hex.DecodeString(voterId)
-	if err != nil || len(voterIdBytes) != VOTER_ID_STR_LENGTH/2 {
+	if err != nil || len(voterIdBytes) != voterIDStrLength/2 {
 		return nil, fmt.Errorf("invalid voterId: %w", err)
 	}
 	message, err := hex.DecodeString(processId + voterId)
-	if err != nil || len(message) != SIGNED_MESSAGE_BYTES_LENGTH {
+	if err != nil || len(message) != signedMessageBytesLength {
 		// By discard, only processId can be invalid
 		return nil, fmt.Errorf("invalid electionId: %w", err)
 	}
