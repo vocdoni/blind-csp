@@ -47,7 +47,6 @@ func (rh *RsaHandler) addKey(voterID, processID []byte) error {
 	if err != nil {
 		return err
 	}
-
 	if err := tx.Set(key.Bytes(), nil); err != nil {
 		return err
 	}
@@ -122,7 +121,7 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return false, "already registered"
 	}
 
-	err = rh.addKey(authData.VoterId, nil)
+	err = rh.addKey(authData.VoterId, authData.ProcessId)
 	if err != nil {
 		return false, "could not add key"
 	}

@@ -1,13 +1,21 @@
 package rsahandler
 
 import (
+	"crypto"
+	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/vocdoni/blind-csp/csp"
+	"go.vocdoni.io/dvote/util"
 )
 
 const (
@@ -157,4 +165,65 @@ G1s4fKvcQR1NqfvGchXHTZZply7P+1NZnO4UX8z7T9VoMRSoS7lM8jdIeOjoyZuk
 		validateRsaSignature(sig, message, parsedKey.(*rsa.PublicKey)),
 		qt.IsNil,
 	)
+}
+
+func TestAuth(t *testing.T) {
+	handler := RsaHandler{}
+
+	rsaPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	qt.Assert(t, err, qt.IsNil)
+
+	rsaEncodedKey, err := x509.MarshalPKIXPublicKey(rsaPrivKey.Public())
+	qt.Assert(t, err, qt.IsNil)
+	rsaPemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: rsaEncodedKey})
+	qt.Assert(t, rsaPemKey, qt.IsNotNil)
+
+	// Create a temporary file fo rstoring the RSA pubKey
+	keyFile, err := ioutil.TempFile("", "")
+	qt.Assert(t, err, qt.IsNil)
+	keyFilePath := keyFile.Name()
+	_, err = keyFile.Write(rsaPemKey)
+	qt.Assert(t, err, qt.IsNil)
+	err = keyFile.Close()
+	qt.Assert(t, err, qt.IsNil)
+
+	defer func() {
+		if err := os.Remove(keyFilePath); err != nil {
+			t.Log(err)
+		}
+	}()
+
+	// Init the handler
+	err = handler.Init(t.TempDir(), keyFilePath)
+	qt.Assert(t, err, qt.IsNil)
+
+	// Build a valid message with the RSA signature
+	processID := util.RandomBytes(32)
+	voterID := util.RandomBytes(32)
+	message, err := hex.DecodeString(fmt.Sprintf("%x%x", processID, voterID))
+	msgHash := sha256.Sum256(message)
+	qt.Assert(t, err, qt.IsNil)
+
+	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaPrivKey, crypto.SHA256, msgHash[:])
+	qt.Assert(t, err, qt.IsNil)
+
+	msg := csp.Message{
+		AuthData: []string{
+			fmt.Sprintf("%x", processID),
+			fmt.Sprintf("%x", voterID),
+			fmt.Sprintf("%x", signature),
+		},
+	}
+
+	valid, _ := handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
+	qt.Assert(t, valid, qt.IsTrue)
+
+	// Try again (double spend)
+	valid, _ = handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
+	qt.Assert(t, valid, qt.IsFalse)
+
+	// Build an invalid message
+	msg.AuthData[1] = fmt.Sprintf("%x", util.RandomBytes(32))
+	valid, _ = handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
+	qt.Assert(t, valid, qt.IsFalse)
 }
