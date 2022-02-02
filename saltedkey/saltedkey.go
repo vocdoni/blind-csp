@@ -62,7 +62,7 @@ func (sk *SaltedKey) SignECDSA(salt [SaltSize]byte,
 	// add it to the current key, so now we have a new private key (currentPrivKey + n)
 	esk.Private.D.Add(esk.Private.D, s)
 	// return the signature
-	return esk.SignVocdoniMsg(msg)
+	return esk.SignEthereum(msg)
 }
 
 // SignBlind returns the signature payload of a blinded message using the provided Salt.
