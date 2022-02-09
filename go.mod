@@ -8,5 +8,6 @@ require (
 	github.com/frankban/quicktest v1.14.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
-	go.vocdoni.io/dvote v1.0.4-0.20220203192346-e482a1057a9c
+	github.com/tendermint/tendermint v0.35.1 // indirect
+	go.vocdoni.io/dvote v1.0.4-0.20220207152532-2c10f1b191cd
 )
