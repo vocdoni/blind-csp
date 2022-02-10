@@ -9,5 +9,5 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
 	github.com/tendermint/tendermint v0.34.15 // indirect
-	go.vocdoni.io/dvote v1.0.4-0.20220207152532-2c10f1b191cd
+	go.vocdoni.io/dvote v1.0.4-0.20220210143454-e386915ab3d5
 )
