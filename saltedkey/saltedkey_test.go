@@ -24,16 +24,15 @@ func TestECDSAsaltedKey(t *testing.T) {
 	signature, err := sk.SignECDSA(salt, msg)
 	qt.Assert(t, err, qt.IsNil)
 
+	saltAddr, err := ethereum.AddrFromSignature(msg, signature)
+	qt.Assert(t, err, qt.IsNil)
+
 	signingKeys := ethereum.NewSignKeys()
-	err = signingKeys.AddHexKey(privHex)
-	qt.Assert(t, err, qt.IsNil)
+	signingKeys.AddAuthKey(saltAddr)
 
-	pubKeySalted, err := SaltECDSAPubKey(&signingKeys.Public, salt)
+	ok, _, err := signingKeys.VerifySender(msg, signature)
 	qt.Assert(t, err, qt.IsNil)
-
-	valid, err := ethereum.Verify(msg, signature, pubKeySalted)
-	qt.Assert(t, err, qt.IsNil)
-	qt.Assert(t, valid, qt.IsTrue)
+	qt.Assert(t, ok, qt.IsTrue)
 }
 
 func TestBlindsaltedKey(t *testing.T) {
