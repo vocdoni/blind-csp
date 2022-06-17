@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/log"
@@ -54,23 +54,32 @@ func (ih *IpaddrHandler) Init(opts ...string) (err error) {
 
 // Auth is the handler for the ipaddr handler
 func (ih *IpaddrHandler) Auth(r *http.Request,
-	ca *csp.Message, pid []byte, st string) (bool, string) {
+	ca *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {
 		log.Warnf("cannot get ip from request: %s", r.RemoteAddr)
-		return false, "cannot get IP from request"
+		return AuthResponse{Response: []string{"cannot get IP from request"}}
 	}
-	if st == csp.SignatureTypeSharedKey {
-		return true, "please, do not share the key"
+	if signType == types.SignatureTypeSharedKey {
+		return AuthResponse{}
 	}
 	if ih.exist([]byte(ipaddr)) {
 		log.Warnf("ip %s already registered", ipaddr)
-		return false, "already registered"
+		return AuthResponse{Response: []string{"already registered"}}
 	}
 	ih.addKey([]byte(ipaddr), nil)
 	log.Infof("new user registered with ip %s", ipaddr)
-	return true, ""
+	return AuthResponse{}
+}
+
+// Info returns the handler options and required auth steps.
+func (ih *IpaddrHandler) Info() *types.Message {
+	return &types.Message{
+		Title:     "unique IP address",
+		AuthType:  "blind",
+		AuthSteps: []*types.AuthField{},
+	}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

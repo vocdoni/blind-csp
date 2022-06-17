@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -22,13 +22,22 @@ func (dh *DummyHandler) GetName() string {
 	return "dummy"
 }
 
+// Info returns the handler options and required auth steps.
+func (dh *DummyHandler) Info() *types.Message {
+	return &types.Message{
+		Title:     "dummu handler",
+		AuthType:  "blind",
+		AuthSteps: []*types.AuthField{},
+	}
+}
+
 // Auth is the handler for the dummy handler
 func (dh *DummyHandler) Auth(r *http.Request,
-	ca *csp.Message, pid []byte, st string) (bool, string) {
+	ca *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	log.Infof("new user registered with ip %s", ipaddr)
-	return true, fmt.Sprintf("welcome to process %x!", pid)
+	return AuthResponse{Response: []string{fmt.Sprintf("welcome to process %x!", pid)}}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

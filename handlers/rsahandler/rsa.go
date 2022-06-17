@@ -14,7 +14,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/handlers"
+	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/log"
@@ -97,37 +98,52 @@ func (rh *RsaHandler) Init(opts ...string) (err error) {
 	return err
 }
 
+// Info returns the handler options and required auth steps.
+// TODO: needs to be adapted!
+func (rh *RsaHandler) Info() *types.Message {
+	return &types.Message{
+		Title:    "RSA signature",
+		AuthType: "blind",
+		AuthSteps: []*types.AuthField{
+			{Title: "Election ID", Type: "hex32"},
+			{Title: "Voter ID", Type: "hex32"},
+			{Title: "Signature", Type: "text"},
+		},
+	}
+}
+
 // Auth is the handler for the rsa handler
 func (rh *RsaHandler) Auth(r *http.Request,
-	ca *csp.Message, pid []byte, st string) (bool, string) {
+	ca *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
 	authData, err := parseRsaAuthData(ca.AuthData)
 	if err != nil {
-		return false, err.Error()
+		log.Warn(err)
+		return handlers.AuthResponse{}
 	}
 	if !bytes.Equal(pid, authData.ProcessId) {
-		return false, "the provided electionId does not match the URL one"
+		return handlers.AuthResponse{Response: []string{"the provided electionId does not match the URL one"}}
 	}
 
 	// Verify signature
 	if err := validateRsaSignature(authData.Signature, authData.Message, rh.rsaPubKey); err != nil {
-		return false, "invalid signature"
+		return handlers.AuthResponse{Response: []string{"invalid signature"}}
 	}
 
-	if st == csp.SignatureTypeSharedKey {
-		return true, "please, do not share the key"
+	if st == types.SignatureTypeSharedKey {
+		return handlers.AuthResponse{Response: []string{"please, do not share the key"}}
 	}
 
 	if rh.exist(authData.VoterId, authData.ProcessId) {
-		return false, "already registered"
+		return handlers.AuthResponse{Response: []string{"already registered"}}
 	}
 
 	err = rh.addKey(authData.VoterId, authData.ProcessId)
 	if err != nil {
-		return false, "could not add key"
+		return handlers.AuthResponse{Response: []string{"could not add key"}}
 	}
 	log.Infof("new user registered with id %x", authData.VoterId)
 
-	return true, ""
+	return handlers.AuthResponse{Success: true}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client
@@ -200,7 +216,7 @@ func parseRsaAuthData(authData []string) (*rsaAuthData, error) {
 	}
 	voterIdBytes, err := hex.DecodeString(voterId)
 	if err != nil || len(voterIdBytes) != voterIDStrLength/2 {
-		return nil, fmt.Errorf("invalid voterId: %w", err)
+		return nil, fmt.Errorf("invalid voterId format: %w", err)
 	}
 	message, err := hex.DecodeString(processId + voterId)
 	if err != nil || len(message) != signedMessageBytesLength {
@@ -209,7 +225,7 @@ func parseRsaAuthData(authData []string) (*rsaAuthData, error) {
 	}
 	signature, err := hex.DecodeString(authData[2])
 	if err != nil || len(signature) == 0 {
-		return nil, fmt.Errorf("invalid voterId")
+		return nil, fmt.Errorf("invalid signature format")
 	}
 
 	return &rsaAuthData{

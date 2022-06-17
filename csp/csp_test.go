@@ -12,6 +12,8 @@ import (
 
 	"github.com/arnaucube/go-blindsecp256k1"
 	qt "github.com/frankban/quicktest"
+	"github.com/vocdoni/blind-csp/handlers"
+	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 )
 
@@ -27,7 +29,7 @@ func TestBlindCA(t *testing.T) {
 
 	// Use the key generated for initialize the CA with a dummy handler
 	// Create the blind CA API and assign the IP auth function
-	ca, err := NewBlindCSP(priv, t.TempDir(), testAuthHandler)
+	ca, err := NewBlindCSP(priv, t.TempDir(), testAuthHandler, nil)
 	qt.Assert(t, err, qt.IsNil)
 
 	// Generate a new R point for blinding
@@ -103,8 +105,8 @@ func TestBlindCA(t *testing.T) {
 	)
 }
 
-func testAuthHandler(r *http.Request, m *Message, pid []byte, st string) (bool, string) {
-	return true, fmt.Sprintf("hello %x!", pid)
+func testAuthHandler(r *http.Request, m *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
+	return handlers.AuthResponse{Success: true, Response: []string{fmt.Sprintf("hello %x!", pid)}}
 }
 
 func randomBytes(n int) []byte {

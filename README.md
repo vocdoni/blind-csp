@@ -29,23 +29,87 @@ and there is no way to reuse a CSP signature for a different election process.
 
 ## API
 
-The HTTP(s) API is very minimalistic (as follows):
+The HTTP(s) API is very minimalistic. The handler implements the method for authentication.
+Let's see some examples using the Simple Math handler that requires the user to solve a 
+simple math challenge.
 
-```
-curl -X POST https://server.foo/v1/auth/processes/<processId>/<signatureType>/<action>
-```
-+ processId: is a 32 byte hexadecimal string which identifies the process. It is used to salt the CSP private and public keys
-+ signatureType: is either `blind` or `ecdsa`
-+ action: is either `auth` or `sign`
+The handler requires a two steps authentication process:
+1. Requires a name and replies with the challenge (["123","200"])
+2. Requires the challenge solution (["323"])
 
-### 1. Authentication and token retreival
+### 1. Handler information
+
+The `info` endpoint provides the description of the handler. 
+The `authType` parameter indicates the kind of signature is provided by the CSP. 
+Currently `blind` for ECDSA blind signature and `ecdsa` for plain ECDSA signature are allowed.
+
+The `authSteps` array describes the authentication steps and its parameters.
+So in the following example there are two steps (array size), the first one requires a
+text field named `Name`. The second a 4 digits integer named `Solution`.
 
 ```js
-curl -X POST https://server.foo/v1/auth/processes/12345.../blind/auth -d '{ "authData": ["data-required-by-the-handler"] }'
+curl http://127.0.0.1:5000/v1/auth/elections/info
+
+{
+  "title": "Simple math challenge",
+  "authType": "blind",
+  "authSteps": [
+    {
+      "title": "Name",
+      "type": "text"
+    },
+    {
+      "title": "Solution",
+      "type": "int4"
+    }
+  ]
+}
+```
+
+### 1. Authentication steps
+
+The endpoint `blind/auth/<step>` handles the authentication steps for the handler. 
+The client needs to perform all steps (in our case 2) starting with 0.
+
+#### Step 0
+
+An `authToken` is provided by the CSP in order to identify the client
+in the following steps.
+
+An array of strings named `response` might be returned by the handler if the client
+requires some data for performing the next step. In our case the challenge numbers that
+must be sum by the client.
+
+```js
+curl -s 127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265/blind/auth/0 -X POST -d '{"authData":["John Smith"]}'
 
 // HTTP 200
 {
-	"tokenR": "0x1234567890abcde..."
+      "authToken": "9ba29669-3a38-43ac-a8f6-d6ac99d2e3a2",
+      "response": [
+        "141",
+        "484"
+      ]
+}
+
+// HTTP 400
+{
+	"error": "Message goes here"
+}
+```
+
+#### Step 1
+
+In the final step, if the authentication challenge is resolved, the CSP returns `token`, the data
+that can be used by the client to prepare and ask for the signature. In our case the signature is
+of type `blind` so the token is the curve point `R` required for blinding the payload.
+
+```js
+curl -s 127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265/ecdsa/auth/1 -X POST -d '{"authToken":"8b16df36-9720-487f-b3eb-a46dfdebdb36", "authData":["574"]}'
+
+// HTTP 200
+{
+      "token": "0d2347cf59313bdb4038f0c6643e9289d694c1c67d4d1d66f56968e374d48669"
 }
 
 // HTTP 400
@@ -56,10 +120,11 @@ curl -X POST https://server.foo/v1/auth/processes/12345.../blind/auth -d '{ "aut
 
 ### 2. CSP Blind signature
 
-The signature performed by the CSP key salted with processId, of the blinded payload 
+The signature performed by the CSP.
+Usually the payload is an ephemeral ECDSA public key that the client creates for performing the vote.
 
 ```js
-curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "payload": "0xabcdef...", "tokenR": "0x123bcde..." }'
+curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "payload": "0xabcdef...", "token": "0x123bcde..." }'
 
 // HTTP 200
 {
@@ -80,12 +145,17 @@ authenticate should be able to decrypt.
 
 The shared key is the ECDSA salted signature of keccak256(processId).
 
+The sharedkey endpoint requires the same authentication steps described by the `info` method.
+However the handler might apply different restrictions such as allow the authentication succeed more
+than one time.
+
 ```js
-curl -X POST https://server.foo/v1/auth/processes/12345.../sharedkey -d '{ "authData": ["data-required-by-the-handler"] }'
+curl -s 127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265/sharedkey/0 -X POST -d '{"authData":["John Smith"]}'
 
 // HTTP 200
-{
-	"sharedkey": "0x1234567890abcde..." // the shared key
+{     
+      "authToken":"12ab5ec4-bfc5-4dd1-896f-46ae06b15e81",
+      "response":["232","333"]
 }
 
 // HTTP 400
@@ -94,26 +164,43 @@ curl -X POST https://server.foo/v1/auth/processes/12345.../sharedkey -d '{ "auth
 }
 ```
 
+```js
+curl -s 127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265/sharedkey/1 -X POST -d '{"authToken":"12ab5ec4-bfc5-4dd1-896f-46ae06b15e81", "authData":["565"]}'
+
+{
+      "sharedkey": "a6d7b59f5f6dfff418464c3fa2895ad872d402bda6e85f1ba62fe6f50f703ea87247ca8bf34a00a15cd768ba44cd6c99044a2ff4b6f837f77c243102872f03c101"
+}
+```
 
 ## Usage
 
 See the `test.sh` file for a full flow example.
 
 ```golang
-$ go run . --loglevel=debug --handler=uniqueIp
+$ go run . --loglevel=debug --handler=simpleMath
 Using path /home/user/.blindcsp
-2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:124	logger construction succeeded at level debug with output stdout
-2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:142	using ECDSA signer with address 0xAF1fd9cD2F2A24107757EC58561522869e32F7DF
-2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:157	using handler dummy
-2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:120	starting go-chi http server
-2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:134	router ready at http://[::]:5000
-2021-11-29T23:59:53+01:00	INFO	blind-ca/main.go:186	CSP root public key: fef679c673157994e882b85ceeb23ba86f0873493e96f11e2...
-2021-11-29T23:59:53+01:00	DEBUG	csp/csp.go:68	initializing persistent storage on /home/user/.blindcsp/dummy
-2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:148	added namespace bearerStd
-2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:179	added public handler for namespace bearerStd with pattern /v1/auth/processes/{processId}/{signType}/auth
-2021-11-29T23:59:53+01:00	INFO	bearerstdapi/bearerstdapi.go:140	registered POST public method for path /v1/auth/processes/{processId}/{signType}/auth
-2021-11-29T23:59:53+01:00	INFO	httprouter/httprouter.go:179	added public handler for namespace bearerStd with pattern /v1/auth/processes/{processId}/{signType}/sign
-2021-11-29T23:59:53+01:00	INFO	bearerstdapi/bearerstdapi.go:140	registered POST public method for path /v1/auth/processes/{processId}/{signType}/sign
+2022-06-17T16:29:19+02:00	INFO	blind-csp/main.go:124	logger construction succeeded at level debug with output stdout
+2022-06-17T16:29:19+02:00	INFO	blind-csp/main.go:142	using ECDSA signer with address 0x5D7Ad549556B40E05ef7576B26b368c824263B30
+2022-06-17T16:29:19+02:00	INFO	blind-csp/main.go:157	using handler simpleMath
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:150	starting go-chi http server
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:164	router ready at http://[::]:5000
+2022-06-17T16:29:19+02:00	INFO	blind-csp/main.go:186	CSP root public key: 02c5d98b525d844440f16d4e0492dc8e4c8188ab00ed3d4bb104365280db8a9252
+2022-06-17T16:29:19+02:00	DEBUG	csp/csp.go:52	initializing persistent storage on /home/p4u/.blindcsp/simpleMath
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:178	added namespace bearerStd
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/ping
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered GET public method for path /v1/auth/elections/ping
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/info
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered GET public method for path /v1/auth/elections/info
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/auth/{step}
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/auth/{step}
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/auth
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/auth
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/sign
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/sign
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/sharedkey/{step}
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/sharedkey/{step}
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/sharedkey
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/sharedkey
 ```
 
 ```golang

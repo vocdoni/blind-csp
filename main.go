@@ -15,7 +15,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"github.com/vocdoni/blind-csp/csp"
-	"github.com/vocdoni/blind-csp/handlers"
+	"github.com/vocdoni/blind-csp/handlers/handlerlist"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
@@ -38,7 +38,7 @@ func main() {
 		"log level {debug,info,warn,error}")
 	flag.String("handler", "dummy",
 		fmt.Sprintf("the authentication handler to use, available: {%s}",
-			handlers.HandlersList()))
+			handlerlist.HandlersList()))
 	flag.StringSlice("handlerOpts", []string{}, "options that will be passed to the handler")
 	flag.Int("port", 5000, "port to listen")
 	flag.Parse()
@@ -147,7 +147,7 @@ func main() {
 	router.TLSdirCert = filepath.Join(dataDir, "tls")
 
 	// Create the auth handler (currently a dummy one that only checks the IP)
-	authHandler := handlers.Handlers[handler]
+	authHandler := handlerlist.Handlers[handler]
 	if authHandler == nil {
 		log.Fatalf("handler %s is unknown", handler)
 	}
@@ -184,7 +184,12 @@ func main() {
 	// Create the blind CA API and assign the auth function
 	pub, priv := signer.HexString()
 	log.Infof("CSP root public key: %s", pub)
-	cs, err := csp.NewBlindCSP(priv, path.Join(dataDir, authHandler.GetName()), authHandler.Auth)
+	cs, err := csp.NewBlindCSP(
+		priv,
+		path.Join(dataDir, authHandler.GetName()),
+		authHandler.Auth,
+		authHandler.Info,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

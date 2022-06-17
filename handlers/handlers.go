@@ -1,13 +1,20 @@
 package handlers
 
 import (
+	"bytes"
 	"net/http"
-	"strings"
 
-	"github.com/vocdoni/blind-csp/csp"
-	"github.com/vocdoni/blind-csp/handlers/idcathandler"
-	"github.com/vocdoni/blind-csp/handlers/rsahandler"
+	"github.com/google/uuid"
+	"github.com/vocdoni/blind-csp/types"
 )
+
+// AuthFunc is the function type required for performing an authentication
+// via callback handler.
+type AuthFunc = func(*http.Request, *types.Message, types.HexBytes, string, int) AuthResponse
+
+// InfoFunc is the function type required for providing the handler options
+// and description via callback handler
+type InfoFunc = func() *types.Message
 
 // AuthHandler is the interface that all CSP handlers should implement.
 // The Auth method must return either the request is valid or not.
@@ -18,27 +25,33 @@ import (
 type AuthHandler interface {
 	Init(opts ...string) error
 	GetName() string
-	Auth(r *http.Request, ca *csp.Message,
-		processID []byte, signatureType string) (bool, string)
+	Auth(r *http.Request, msg *types.Message, processID types.HexBytes,
+		signatureType string, step int) AuthResponse
 	RequireCertificate() bool
 	Certificates() [][]byte
 	CertificateCheck(subject []byte) bool
+	Info() *types.Message
 }
 
-// Handlers contains the list of available handlers
-var Handlers = map[string]AuthHandler{
-	"dummy":        &DummyHandler{},
-	"uniqueIp":     &IpaddrHandler{},
-	"idCat":        &idcathandler.IDcatHandler{ForTesting: false},
-	"idCatTesting": &idcathandler.IDcatHandler{ForTesting: true},
-	"rsa":          &rsahandler.RsaHandler{},
+// AuthResponse is the type returned by Auth methods on the AuthHandler interface.
+// If success true and AuthToken is nil, authentication process is considered finished,
+// and the CSP signature is provided to the user.
+type AuthResponse struct {
+	Success   bool
+	Response  []string
+	AuthToken *uuid.UUID
 }
 
-// HandlersList returns a human friendly string with the list of available handlers
-func HandlersList() string {
-	var h string
-	for k := range Handlers {
-		h += k + " "
+func (a *AuthResponse) String() string {
+	if len(a.Response) == 0 {
+		return ""
 	}
-	return strings.TrimRight(h, " ")
+	var buf bytes.Buffer
+	for i, r := range a.Response {
+		buf.WriteString(r)
+		if i < len(a.Response)-1 {
+			buf.WriteString("/")
+		}
+	}
+	return buf.String()
 }

@@ -2,10 +2,10 @@ package csp
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 
+	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/saltedkey"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
@@ -22,17 +22,10 @@ const (
 	RandomTokenSize = 32
 )
 
-// BlindCSPauthFunc is the function type required for performing an authentication
-// via callback handler.
-type BlindCSPauthFunc = func(*http.Request, *Message, []byte, string) (bool, string)
-
-// SharedKeyCSPauthFunc is the function type required for performing an authentication
-// for retreiving the shared key via callback handler.
-type SharedKeyCSPauthFunc = func(*http.Request, *Message, []byte) (bool, string)
-
 // BlindCSP is the blind signature API service for certification authorities
 type BlindCSP struct {
-	AuthCallback BlindCSPauthFunc
+	AuthCallback handlers.AuthFunc
+	InfoCallback handlers.InfoFunc
 	router       *httprouter.HTTProuter
 	api          *bearerstdapi.BearerStandardAPI
 	signer       *saltedkey.SaltedKey
@@ -42,12 +35,13 @@ type BlindCSP struct {
 
 // NewBlindCSP creates and initializes the CSP API with a private key (64 digits hexadecimal string)
 // and a custom callback authorization function.
-func NewBlindCSP(privKey, dataDir string, callback BlindCSPauthFunc) (*BlindCSP, error) {
+func NewBlindCSP(privKey, dataDir string, authCallback handlers.AuthFunc, infoCallback handlers.InfoFunc) (*BlindCSP, error) {
 	if len(privKey) != PrivKeyHexSize {
 		return nil, fmt.Errorf("private key size is incorrect %d", len(privKey))
 	}
 	csp := new(BlindCSP)
-	csp.AuthCallback = callback
+	csp.AuthCallback = authCallback
+	csp.InfoCallback = infoCallback
 	var err error
 	// ECDSA/Blind signer
 	if csp.signer, err = saltedkey.NewSaltedKey(privKey); err != nil {

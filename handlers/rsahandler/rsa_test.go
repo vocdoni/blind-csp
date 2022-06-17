@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	"github.com/vocdoni/blind-csp/csp"
+	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/util"
 )
 
@@ -207,7 +207,7 @@ func TestAuth(t *testing.T) {
 	signature, err := rsa.SignPKCS1v15(rand.Reader, rsaPrivKey, crypto.SHA256, msgHash[:])
 	qt.Assert(t, err, qt.IsNil)
 
-	msg := csp.Message{
+	msg := types.Message{
 		AuthData: []string{
 			fmt.Sprintf("%x", processID),
 			fmt.Sprintf("%x", voterID),
@@ -215,15 +215,15 @@ func TestAuth(t *testing.T) {
 		},
 	}
 
-	valid, _ := handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
-	qt.Assert(t, valid, qt.IsTrue)
+	r := handler.Auth(nil, &msg, processID, types.SignatureTypeBlind, 0)
+	qt.Assert(t, r.Success, qt.IsTrue)
 
 	// Try again (double spend)
-	valid, _ = handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
-	qt.Assert(t, valid, qt.IsFalse)
+	r = handler.Auth(nil, &msg, processID, types.SignatureTypeBlind, 0)
+	qt.Assert(t, r.Success, qt.IsFalse)
 
 	// Build an invalid message
 	msg.AuthData[1] = fmt.Sprintf("%x", util.RandomBytes(32))
-	valid, _ = handler.Auth(nil, &msg, processID, csp.SignatureTypeBlind)
-	qt.Assert(t, valid, qt.IsFalse)
+	r = handler.Auth(nil, &msg, processID, types.SignatureTypeBlind, 0)
+	qt.Assert(t, r.Success, qt.IsFalse)
 }
