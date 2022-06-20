@@ -36,6 +36,15 @@ func (csp *BlindCSP) registerHandlers() error {
 	}
 
 	if err := csp.api.RegisterMethod(
+		"/indexer/{userId}",
+		"GET",
+		bearerstdapi.MethodAccessTypePublic,
+		csp.indexer,
+	); err != nil {
+		return err
+	}
+
+	if err := csp.api.RegisterMethod(
 		"/{processId}/{signType}/auth/{step}",
 		"POST",
 		bearerstdapi.MethodAccessTypePublic,
@@ -109,7 +118,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	var authResp handlers.AuthResponse
 	var resp types.Message
 	signType := ctx.URLParam("signType")
-	if authResp = csp.AuthCallback(ctx.Request, req, pid, signType, step); authResp.Success {
+	if authResp = csp.callbacks.Auth(ctx.Request, req, pid, signType, step); authResp.Success {
 		switch signType {
 		case types.SignatureTypeBlind:
 			if authResp.AuthToken == nil {
@@ -209,7 +218,13 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 
 	var resp types.Message
 	var authResp handlers.AuthResponse
-	if authResp = csp.AuthCallback(ctx.Request, req, pid, types.SignatureTypeSharedKey, step); authResp.Success {
+	if authResp = csp.callbacks.Auth(
+		ctx.Request,
+		req,
+		pid,
+		types.SignatureTypeSharedKey,
+		step,
+	); authResp.Success {
 		if authResp.AuthToken == nil {
 			resp.SharedKey, err = csp.SharedKey(pid)
 			if err != nil {
@@ -226,13 +241,27 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 
 func (csp *BlindCSP) info(msg *bearerstdapi.BearerStandardAPIdata,
 	ctx *httprouter.HTTPContext) error {
-	if csp.InfoCallback == nil {
+	if csp.callbacks.Info == nil {
 		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
 	}
-	resp := csp.InfoCallback()
+	resp := csp.callbacks.Info()
 	if resp == nil {
 		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
 	}
+	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func (csp *BlindCSP) indexer(msg *bearerstdapi.BearerStandardAPIdata,
+	ctx *httprouter.HTTPContext) error {
+	if csp.callbacks.Indexer == nil {
+		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
+	}
+	userID, err := hex.DecodeString(trimHex(ctx.URLParam("userId")))
+	if err != nil {
+		return fmt.Errorf("cannot get user id: %w", err)
+	}
+	var resp types.Message
+	resp.Elections = csp.callbacks.Indexer(userID)
 	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 

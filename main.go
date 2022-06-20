@@ -187,8 +187,11 @@ func main() {
 	cs, err := csp.NewBlindCSP(
 		priv,
 		path.Join(dataDir, authHandler.GetName()),
-		authHandler.Auth,
-		authHandler.Info,
+		csp.BlindCSPcallbacks{
+			Auth:    authHandler.Auth,
+			Info:    authHandler.Info,
+			Indexer: authHandler.Indexer,
+		},
 	)
 	if err != nil {
 		log.Fatal(err)

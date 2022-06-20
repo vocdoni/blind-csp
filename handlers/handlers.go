@@ -13,8 +13,12 @@ import (
 type AuthFunc = func(*http.Request, *types.Message, types.HexBytes, string, int) AuthResponse
 
 // InfoFunc is the function type required for providing the handler options
-// and description via callback handler
+// and description via callback handler.
 type InfoFunc = func() *types.Message
+
+// IndexerFunc is the function type used for providing the user with the list of
+// processes where its participation is allowed.
+type IndexerFunc = func(types.HexBytes) []*types.HexBytes
 
 // AuthHandler is the interface that all CSP handlers should implement.
 // The Auth method must return either the request is valid or not.
@@ -31,6 +35,7 @@ type AuthHandler interface {
 	Certificates() [][]byte
 	CertificateCheck(subject []byte) bool
 	Info() *types.Message
+	Indexer(userID types.HexBytes) []*types.HexBytes
 }
 
 // AuthResponse is the type returned by Auth methods on the AuthHandler interface.

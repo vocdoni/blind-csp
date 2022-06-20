@@ -29,7 +29,7 @@ func TestBlindCA(t *testing.T) {
 
 	// Use the key generated for initialize the CA with a dummy handler
 	// Create the blind CA API and assign the IP auth function
-	ca, err := NewBlindCSP(priv, t.TempDir(), testAuthHandler, nil)
+	ca, err := NewBlindCSP(priv, t.TempDir(), BlindCSPcallbacks{Auth: testAuthHandler})
 	qt.Assert(t, err, qt.IsNil)
 
 	// Generate a new R point for blinding
@@ -105,8 +105,12 @@ func TestBlindCA(t *testing.T) {
 	)
 }
 
-func testAuthHandler(r *http.Request, m *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
-	return handlers.AuthResponse{Success: true, Response: []string{fmt.Sprintf("hello %x!", pid)}}
+func testAuthHandler(r *http.Request, m *types.Message,
+	pid types.HexBytes, st string, step int) handlers.AuthResponse {
+	return handlers.AuthResponse{
+		Success:  true,
+		Response: []string{fmt.Sprintf("hello %x!", pid)},
+	}
 }
 
 func randomBytes(n int) []byte {

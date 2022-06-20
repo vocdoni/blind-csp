@@ -82,6 +82,13 @@ func (ih *IpaddrHandler) Info() *types.Message {
 	}
 }
 
+// Indexer takes a unique user identifier and returns the list of processIDs where
+// the user is elegible for participation. This is a helper function that might not
+// be implemented (depends on the handler use case).
+func (ih *IpaddrHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+	return nil
+}
+
 // RequireCertificate must return true if the auth handler requires some kind of client
 // TLS certificate. If true then CertificateCheck() and HardcodedCertificate() methods
 // must be correctly implemented. Else both function can just return true and nil.

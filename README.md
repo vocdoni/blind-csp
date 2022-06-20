@@ -172,6 +172,22 @@ curl -s 127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66
 }
 ```
 
+### 4. Indexer
+
+Some handlers might enable an indexer in order to let the user know the list of elections where he is eligible for participating.
+The indexer endpoint takes as URL parameter a unique identifier by the user (hexadecimal string format) and returns the list of
+election identifiers (if any).
+
+```js
+curl http://127.0.0.1:5000/v1/auth/elections/indexer/a216bc43310f46d66d39fdc073ed901af6bec66ecc070a97f9cb2dda01ba0241
+
+{
+  "elections":[
+    "a9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265"
+    ]
+}
+```
+
 ## Usage
 
 See the `test.sh` file for a full flow example.

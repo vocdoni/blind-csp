@@ -31,6 +31,13 @@ func (dh *DummyHandler) Info() *types.Message {
 	}
 }
 
+// Indexer takes a unique user identifier and returns the list of processIDs where
+// the user is elegible for participation. This is a helper function that might not
+// be implemented (depends on the handler use case).
+func (ih *DummyHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+	return nil
+}
+
 // Auth is the handler for the dummy handler
 func (dh *DummyHandler) Auth(r *http.Request,
 	ca *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {

@@ -90,6 +90,15 @@ func (ih *SimpleMathHandler) Info() *types.Message {
 	}
 }
 
+// Indexer takes a unique user identifier and returns the list of processIDs where
+// the user is elegible for participation. This is a helper function that might not
+// be implemented (depends on the handler use case).
+func (ih *SimpleMathHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+	userID[0] = 0xFF
+	userID[1] = 0xFF
+	return []*types.HexBytes{&userID}
+}
+
 // Redirect handler takes a client identifier and returns
 func (ih *SimpleMathHandler) Redirect(clientID []byte) ([][]byte, error) {
 	return nil, nil

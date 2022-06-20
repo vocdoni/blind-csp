@@ -196,6 +196,13 @@ func (ih *IDcatHandler) Info() *types.Message {
 	return &types.Message{Title: "idCat", AuthType: "blind", AuthSteps: []*types.AuthField{}}
 }
 
+// Indexer takes a unique user identifier and returns the list of processIDs where
+// the user is elegible for participation. This is a helper function that might not
+// be implemented (depends on the handler use case).
+func (ih *IDcatHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+	return nil
+}
+
 // getCAcertificate obtains the CA root certificate from IDcatCAurl HTTP endpoint
 func (ih *IDcatHandler) getCAcertificate(url string) ([]byte, error) {
 	resp, err := http.Get(url)
@@ -269,7 +276,9 @@ func (ih *IDcatHandler) Auth(r *http.Request,
 	cliCert := r.TLS.PeerCertificates[0]
 	if !strings.Contains(cliCert.Issuer.String(), IDcatSubject) {
 		log.Warnf("client certificate is not issued by %s but %s", IDcatSubject, cliCert.Issuer.String())
-		return handlers.AuthResponse{Response: []string{"client certificate is not issued by the required CA"}}
+		return handlers.AuthResponse{
+			Response: []string{"client certificate is not issued by the required CA"},
+		}
 	}
 
 	// Check certificate time

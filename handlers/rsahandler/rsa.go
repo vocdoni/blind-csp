@@ -112,6 +112,13 @@ func (rh *RsaHandler) Info() *types.Message {
 	}
 }
 
+// Indexer takes a unique user identifier and returns the list of processIDs where
+// the user is elegible for participation. This is a helper function that might not
+// be implemented (depends on the handler use case).
+func (ih *RsaHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+	return nil
+}
+
 // Auth is the handler for the rsa handler
 func (rh *RsaHandler) Auth(r *http.Request,
 	ca *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
@@ -121,7 +128,9 @@ func (rh *RsaHandler) Auth(r *http.Request,
 		return handlers.AuthResponse{}
 	}
 	if !bytes.Equal(pid, authData.ProcessId) {
-		return handlers.AuthResponse{Response: []string{"the provided electionId does not match the URL one"}}
+		return handlers.AuthResponse{
+			Response: []string{"the provided electionId does not match the URL one"},
+		}
 	}
 
 	// Verify signature

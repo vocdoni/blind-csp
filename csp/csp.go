@@ -24,24 +24,28 @@ const (
 
 // BlindCSP is the blind signature API service for certification authorities
 type BlindCSP struct {
-	AuthCallback handlers.AuthFunc
-	InfoCallback handlers.InfoFunc
-	router       *httprouter.HTTProuter
-	api          *bearerstdapi.BearerStandardAPI
-	signer       *saltedkey.SaltedKey
-	keys         db.Database
-	keysLock     sync.RWMutex
+	callbacks *BlindCSPcallbacks
+	router    *httprouter.HTTProuter
+	api       *bearerstdapi.BearerStandardAPI
+	signer    *saltedkey.SaltedKey
+	keys      db.Database
+	keysLock  sync.RWMutex
+}
+
+type BlindCSPcallbacks struct {
+	Auth    handlers.AuthFunc
+	Info    handlers.InfoFunc
+	Indexer handlers.IndexerFunc
 }
 
 // NewBlindCSP creates and initializes the CSP API with a private key (64 digits hexadecimal string)
 // and a custom callback authorization function.
-func NewBlindCSP(privKey, dataDir string, authCallback handlers.AuthFunc, infoCallback handlers.InfoFunc) (*BlindCSP, error) {
+func NewBlindCSP(privKey, dataDir string, handlerCallbacks BlindCSPcallbacks) (*BlindCSP, error) {
 	if len(privKey) != PrivKeyHexSize {
 		return nil, fmt.Errorf("private key size is incorrect %d", len(privKey))
 	}
 	csp := new(BlindCSP)
-	csp.AuthCallback = authCallback
-	csp.InfoCallback = infoCallback
+	csp.callbacks = &handlerCallbacks
 	var err error
 	// ECDSA/Blind signer
 	if csp.signer, err = saltedkey.NewSaltedKey(privKey); err != nil {
