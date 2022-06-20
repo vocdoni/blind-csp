@@ -103,7 +103,8 @@ func (rh *RsaHandler) Init(opts ...string) (err error) {
 func (rh *RsaHandler) Info() *types.Message {
 	return &types.Message{
 		Title:    "RSA signature",
-		AuthType: "blind",
+		AuthType: "auth",
+		SignType: types.AllSignatures,
 		AuthSteps: []*types.AuthField{
 			{Title: "Election ID", Type: "hex32"},
 			{Title: "Voter ID", Type: "hex32"},
@@ -115,7 +116,7 @@ func (rh *RsaHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *RsaHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+func (ih *RsaHandler) Indexer(userID types.HexBytes) []types.HexBytes {
 	return nil
 }
 

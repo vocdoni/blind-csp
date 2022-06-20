@@ -1,6 +1,7 @@
 package handlerlist
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/vocdoni/blind-csp/handlers"
@@ -20,9 +21,10 @@ var Handlers = map[string]handlers.AuthHandler{
 
 // HandlersList returns a human friendly string with the list of available handlers.
 func HandlersList() string {
-	var h string
+	var hl []string
 	for k := range Handlers {
-		h += k + " "
+		hl = append(hl, k)
 	}
-	return strings.TrimRight(h, " ")
+	sort.Strings(hl)
+	return strings.Join(hl, ",")
 }

@@ -8,3 +8,6 @@ const (
 	// SignatureTypeSharedKey identifier the shared key (common for all users on the same processId)
 	SignatureTypeSharedKey = "sharedkey"
 )
+
+// AllSignatures is a helper list that includes all available CSP signature schemes.
+var AllSignatures = []string{SignatureTypeBlind, SignatureTypeEthereum, SignatureTypeSharedKey}

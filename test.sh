@@ -1,6 +1,6 @@
 #!/bin/bash
 HOST=${HOST:-"127.0.0.1:5000/v1/auth/elections/A9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265"}
-set -x
+#set -x
 
 get_R_simplemath() {
 	[ -z "$1" ] && {

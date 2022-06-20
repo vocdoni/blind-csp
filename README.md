@@ -40,8 +40,12 @@ The handler requires a two steps authentication process:
 ### 1. Handler information
 
 The `info` endpoint provides the description of the handler. 
-The `authType` parameter indicates the kind of signature is provided by the CSP. 
-Currently `blind` for ECDSA blind signature and `ecdsa` for plain ECDSA signature are allowed.
+The `authType` parameter indicates the kind of authentication is required by the CSP.
+Curently only `auth` is supported, but `oauth` or others might be added in the future.
+
+The `signatureType` string array contains the list of supported signature types (CSP proof).
+Currently `blind` for ECDSA blind signature, `ecdsa` for plain ECDSA signature over an arbitrary payload, 
+and `sharedkey`for fetching a shared secret (signature of processID).
 
 The `authSteps` array describes the authentication steps and its parameters.
 So in the following example there are two steps (array size), the first one requires a
@@ -52,7 +56,8 @@ curl http://127.0.0.1:5000/v1/auth/elections/info
 
 {
   "title": "Simple math challenge",
-  "authType": "blind",
+  "authType": "auth",
+  "signatureType": ["blind","ecdsa","sharedkey"],
   "authSteps": [
     {
       "title": "Name",

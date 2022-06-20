@@ -77,7 +77,8 @@ func (ih *IpaddrHandler) Auth(r *http.Request,
 func (ih *IpaddrHandler) Info() *types.Message {
 	return &types.Message{
 		Title:     "unique IP address",
-		AuthType:  "blind",
+		AuthType:  "auth",
+		SignType:  types.AllSignatures,
 		AuthSteps: []*types.AuthField{},
 	}
 }
@@ -85,7 +86,7 @@ func (ih *IpaddrHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *IpaddrHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+func (ih *IpaddrHandler) Indexer(userID types.HexBytes) []types.HexBytes {
 	return nil
 }
 

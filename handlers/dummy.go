@@ -25,8 +25,9 @@ func (dh *DummyHandler) GetName() string {
 // Info returns the handler options and required auth steps.
 func (dh *DummyHandler) Info() *types.Message {
 	return &types.Message{
-		Title:     "dummu handler",
-		AuthType:  "blind",
+		Title:     "dummy handler",
+		AuthType:  "auth",
+		SignType:  types.AllSignatures,
 		AuthSteps: []*types.AuthField{},
 	}
 }
@@ -34,7 +35,7 @@ func (dh *DummyHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *DummyHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+func (dh *DummyHandler) Indexer(userID types.HexBytes) []types.HexBytes {
 	return nil
 }
 

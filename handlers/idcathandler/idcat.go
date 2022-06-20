@@ -193,13 +193,18 @@ func (ih *IDcatHandler) Init(opts ...string) error {
 
 // Info returns the handler options and required auth steps.
 func (ih *IDcatHandler) Info() *types.Message {
-	return &types.Message{Title: "idCat", AuthType: "blind", AuthSteps: []*types.AuthField{}}
+	return &types.Message{
+		Title:     "idCat",
+		AuthType:  "auth",
+		SignType:  types.AllSignatures,
+		AuthSteps: []*types.AuthField{},
+	}
 }
 
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *IDcatHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
+func (ih *IDcatHandler) Indexer(userID types.HexBytes) []types.HexBytes {
 	return nil
 }
 

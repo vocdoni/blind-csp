@@ -82,7 +82,8 @@ func (ih *SimpleMathHandler) Init(opts ...string) (err error) {
 func (ih *SimpleMathHandler) Info() *types.Message {
 	return &types.Message{
 		Title:    "Simple math challenge",
-		AuthType: "blind",
+		AuthType: "auth",
+		SignType: types.AllSignatures,
 		AuthSteps: []*types.AuthField{
 			{Title: "Name", Type: "text"},
 			{Title: "Solution", Type: "int4"},
@@ -93,10 +94,8 @@ func (ih *SimpleMathHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *SimpleMathHandler) Indexer(userID types.HexBytes) []*types.HexBytes {
-	userID[0] = 0xFF
-	userID[1] = 0xFF
-	return []*types.HexBytes{&userID}
+func (ih *SimpleMathHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+	return nil
 }
 
 // Redirect handler takes a client identifier and returns

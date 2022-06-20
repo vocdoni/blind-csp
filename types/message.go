@@ -17,12 +17,13 @@ type Message struct {
 	Payload   HexBytes     `json:"payload,omitempty"`
 	Signature HexBytes     `json:"signature,omitempty"`
 	SharedKey HexBytes     `json:"sharedkey,omitempty"`
-	Title     string       `json:"title,omitempty"`     // reserved for the info handler
-	AuthType  string       `json:"authType,omitempty"`  // reserved for the info handler
-	AuthSteps []*AuthField `json:"authSteps,omitempty"` // reserved for the info handler
-	AuthData  []string     `json:"authData,omitempty"`  // reserved for the auth handler
-	Response  []string     `json:"response,omitempty"`  // reserved for the handlers
-	Elections []*HexBytes  `json:"elections,omitempty"` // reserved for the indexer handler
+	Title     string       `json:"title,omitempty"`         // reserved for the info handler
+	SignType  []string     `json:"signatureType,omitempty"` // reserver for the info handler
+	AuthType  string       `json:"authType,omitempty"`      // reserved for the info handler
+	AuthSteps []*AuthField `json:"authSteps,omitempty"`     // reserved for the info handler
+	AuthData  []string     `json:"authData,omitempty"`      // reserved for the auth handler
+	Response  []string     `json:"response,omitempty"`      // reserved for the handlers
+	Elections []HexBytes   `json:"elections,omitempty"`     // reserved for the indexer handler
 }
 
 type AuthField struct {
