@@ -12,7 +12,6 @@ import (
 
 	"github.com/arnaucube/go-blindsecp256k1"
 	qt "github.com/frankban/quicktest"
-	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 )
@@ -106,8 +105,8 @@ func TestBlindCA(t *testing.T) {
 }
 
 func testAuthHandler(r *http.Request, m *types.Message,
-	pid types.HexBytes, st string, step int) handlers.AuthResponse {
-	return handlers.AuthResponse{
+	pid types.HexBytes, st string, step int) types.AuthResponse {
+	return types.AuthResponse{
 		Success:  true,
 		Response: []string{fmt.Sprintf("hello %x!", pid)},
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.vocdoni.io/dvote/log"
@@ -23,12 +24,7 @@ type Message struct {
 	AuthSteps []*AuthField `json:"authSteps,omitempty"`     // reserved for the info handler
 	AuthData  []string     `json:"authData,omitempty"`      // reserved for the auth handler
 	Response  []string     `json:"response,omitempty"`      // reserved for the handlers
-	Elections []HexBytes   `json:"elections,omitempty"`     // reserved for the indexer handler
-}
-
-type AuthField struct {
-	Title string `json:"title"`
-	Type  string `json:"type"`
+	Elections []Election   `json:"elections,omitempty"`     // reserved for the indexer handler
 }
 
 func (m *Message) Marshal() []byte {
@@ -68,6 +64,18 @@ func (b *HexBytes) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (b HexBytes) String() string {
+	str, err := b.MarshalBinary()
+	if err != nil {
+		return ""
+	}
+	return string(str)
+}
+
+func (b *HexBytes) FromString(str string) error {
+	return b.UnmarshalBinary([]byte(str))
+}
+
 func (b HexBytes) MarshalJSON() ([]byte, error) {
 	enc := make([]byte, hex.EncodedLen(len(b))+2)
 	enc[0] = '"'
@@ -95,4 +103,52 @@ func (b *HexBytes) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// Election represents a process voting election which might be available for
+// CSP signature or not (already used).
+type Election struct {
+	ElectionID        HexBytes `json:"electionId"`
+	RemainingAttempts int      `json:"remainingAttempts"`
+	Consumed          bool     `json:"consumed"`
+}
+
+// HexBytesToElection transforms a slice of HexBytes to []Election.
+// All entries are set with RemainingAttempts = attempts.
+func HexBytesToElection(electionIDs []HexBytes, attempts int) []Election {
+	elections := []Election{}
+	for _, e := range electionIDs {
+		elections = append(elections, Election{ElectionID: e, RemainingAttempts: attempts})
+	}
+	return elections
+}
+
+// AuthField is the type used by the Info method for returning the description of the
+// authentication steps for the CSP implementation.
+type AuthField struct {
+	Title string `json:"title"`
+	Type  string `json:"type"`
+}
+
+// AuthResponse is the type returned by Auth methods on the AuthHandler interface.
+// If success true and AuthToken is nil, authentication process is considered finished,
+// and the CSP signature is provided to the user.
+type AuthResponse struct {
+	Success   bool       // Either the authentication step is success or not
+	Response  []string   // Response can be used by the handler to provide arbitrary data to the client
+	AuthToken *uuid.UUID // Only if there is a next step
+}
+
+func (a *AuthResponse) String() string {
+	if len(a.Response) == 0 {
+		return ""
+	}
+	var buf strings.Builder
+	for i, r := range a.Response {
+		buf.WriteString(r)
+		if i < len(a.Response)-1 {
+			buf.WriteString("/")
+		}
+	}
+	return buf.String()
 }

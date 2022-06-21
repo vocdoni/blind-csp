@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/vocdoni/blind-csp/certvalid"
-	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/db"
@@ -204,7 +203,7 @@ func (ih *IDcatHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *IDcatHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+func (ih *IDcatHandler) Indexer(userID types.HexBytes) []types.Election {
 	return nil
 }
 
@@ -269,19 +268,19 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 // Auth handler checks for a valid idCat certificate and stores a hash with the
 // certificate content in order to avoid future auth requests from the same identity.
 func (ih *IDcatHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
+	ca *types.Message, pid types.HexBytes, st string, step int) types.AuthResponse {
 	if st != types.SignatureTypeBlind {
-		return handlers.AuthResponse{Response: []string{"only blind signature is allowed"}}
+		return types.AuthResponse{Response: []string{"only blind signature is allowed"}}
 	}
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return handlers.AuthResponse{Response: []string{"no certificate provided"}}
+		return types.AuthResponse{Response: []string{"no certificate provided"}}
 	}
 
 	// Get the client certificate and check that it is actually from the required issues
 	cliCert := r.TLS.PeerCertificates[0]
 	if !strings.Contains(cliCert.Issuer.String(), IDcatSubject) {
 		log.Warnf("client certificate is not issued by %s but %s", IDcatSubject, cliCert.Issuer.String())
-		return handlers.AuthResponse{
+		return types.AuthResponse{
 			Response: []string{"client certificate is not issued by the required CA"},
 		}
 	}
@@ -289,7 +288,7 @@ func (ih *IDcatHandler) Auth(r *http.Request,
 	// Check certificate time
 	if now := time.Now(); now.After(cliCert.NotAfter) || now.Before(cliCert.NotBefore) {
 		log.Warnf("certificate issued for wrong date")
-		return handlers.AuthResponse{Response: []string{"wrong date on certificate"}}
+		return types.AuthResponse{Response: []string{"wrong date on certificate"}}
 	}
 
 	// For testing purposes
@@ -301,7 +300,7 @@ func (ih *IDcatHandler) Auth(r *http.Request,
 	certId, err := ih.certManager.Verify(cliCert, false)
 	if err != nil {
 		log.Warnf("invalid certificate: %v", err)
-		return handlers.AuthResponse{Response: []string{fmt.Sprintf("invalid certificate: %v", err)}}
+		return types.AuthResponse{Response: []string{fmt.Sprintf("invalid certificate: %v", err)}}
 	}
 
 	// Compute the hash for saving the identifier and discard future atempts
@@ -310,7 +309,7 @@ func (ih *IDcatHandler) Auth(r *http.Request,
 	// Check if certificate ID already exist
 	if ih.exist(certIdHash) && !ih.ForTesting {
 		log.Warnf("certificate %x already registered", certIdHash)
-		return handlers.AuthResponse{Response: []string{"certificate already registered"}}
+		return types.AuthResponse{Response: []string{"certificate already registered"}}
 	}
 
 	// Print cert identifier
@@ -327,8 +326,8 @@ func (ih *IDcatHandler) Auth(r *http.Request,
 	}
 	if err := ih.addKey(certIdHash, []byte(strings.TrimRight(authData, ","))); err != nil {
 		log.Warnf("could not add key: %v", err)
-		return handlers.AuthResponse{Response: []string{"internal error 1"}}
+		return types.AuthResponse{Response: []string{"internal error 1"}}
 	}
 
-	return handlers.AuthResponse{Success: true}
+	return types.AuthResponse{Success: true}
 }

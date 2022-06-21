@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
@@ -116,44 +115,44 @@ func (rh *RsaHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *RsaHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+func (ih *RsaHandler) Indexer(userID types.HexBytes) []types.Election {
 	return nil
 }
 
 // Auth is the handler for the rsa handler
 func (rh *RsaHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, st string, step int) handlers.AuthResponse {
+	ca *types.Message, pid types.HexBytes, st string, step int) types.AuthResponse {
 	authData, err := parseRsaAuthData(ca.AuthData)
 	if err != nil {
 		log.Warn(err)
-		return handlers.AuthResponse{}
+		return types.AuthResponse{}
 	}
 	if !bytes.Equal(pid, authData.ProcessId) {
-		return handlers.AuthResponse{
+		return types.AuthResponse{
 			Response: []string{"the provided electionId does not match the URL one"},
 		}
 	}
 
 	// Verify signature
 	if err := validateRsaSignature(authData.Signature, authData.Message, rh.rsaPubKey); err != nil {
-		return handlers.AuthResponse{Response: []string{"invalid signature"}}
+		return types.AuthResponse{Response: []string{"invalid signature"}}
 	}
 
 	if st == types.SignatureTypeSharedKey {
-		return handlers.AuthResponse{Response: []string{"please, do not share the key"}}
+		return types.AuthResponse{Response: []string{"please, do not share the key"}}
 	}
 
 	if rh.exist(authData.VoterId, authData.ProcessId) {
-		return handlers.AuthResponse{Response: []string{"already registered"}}
+		return types.AuthResponse{Response: []string{"already registered"}}
 	}
 
 	err = rh.addKey(authData.VoterId, authData.ProcessId)
 	if err != nil {
-		return handlers.AuthResponse{Response: []string{"could not add key"}}
+		return types.AuthResponse{Response: []string{"could not add key"}}
 	}
 	log.Infof("new user registered with id %x", authData.VoterId)
 
-	return handlers.AuthResponse{Success: true}
+	return types.AuthResponse{Success: true}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

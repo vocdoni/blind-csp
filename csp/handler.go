@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/arnaucube/go-blindsecp256k1"
-	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/httprouter/bearerstdapi"
@@ -115,7 +114,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 
 	// Signature type and auth callback
-	var authResp handlers.AuthResponse
+	var authResp types.AuthResponse
 	var resp types.Message
 	signType := ctx.URLParam("signType")
 	if authResp = csp.callbacks.Auth(ctx.Request, req, pid, signType, step); authResp.Success {
@@ -217,7 +216,7 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 
 	var resp types.Message
-	var authResp handlers.AuthResponse
+	var authResp types.AuthResponse
 	if authResp = csp.callbacks.Auth(
 		ctx.Request,
 		req,

@@ -35,17 +35,17 @@ func (dh *DummyHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (dh *DummyHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+func (dh *DummyHandler) Indexer(userID types.HexBytes) []types.Election {
 	return nil
 }
 
 // Auth is the handler for the dummy handler
 func (dh *DummyHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {
+	ca *types.Message, pid types.HexBytes, signType string, step int) types.AuthResponse {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	log.Infof("new user registered with ip %s", ipaddr)
-	return AuthResponse{Response: []string{fmt.Sprintf("welcome to process %x!", pid)}}
+	return types.AuthResponse{Response: []string{fmt.Sprintf("welcome to process %x!", pid)}}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

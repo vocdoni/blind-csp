@@ -94,7 +94,7 @@ func (ih *SimpleMathHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *SimpleMathHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+func (ih *SimpleMathHandler) Indexer(userID types.HexBytes) []types.Election {
 	return nil
 }
 
@@ -105,13 +105,13 @@ func (ih *SimpleMathHandler) Redirect(clientID []byte) ([][]byte, error) {
 
 // Auth is the handler method for managing the simple math authentication challenge.
 func (ih *SimpleMathHandler) Auth(r *http.Request,
-	c *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {
+	c *types.Message, pid types.HexBytes, signType string, step int) types.AuthResponse {
 
 	switch step {
 	case 0:
 		// If first step, build new challenge
 		if len(c.AuthData) != 1 {
-			return AuthResponse{Response: []string{"incorrect auth data fields"}}
+			return types.AuthResponse{Response: []string{"incorrect auth data fields"}}
 		}
 		name := c.AuthData[0]
 		token := uuid.New()
@@ -120,7 +120,7 @@ func (ih *SimpleMathHandler) Auth(r *http.Request,
 		ih.addToken(token.String(), r1+r2)
 		ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 		log.Infof("user %s from %s challenged with math question %d + %d", name, ipaddr, r1, r2)
-		return AuthResponse{
+		return types.AuthResponse{
 			Success:   true,
 			Response:  []string{fmt.Sprintf("%d", r1), fmt.Sprintf("%d", r2)},
 			AuthToken: &token,
@@ -129,28 +129,28 @@ func (ih *SimpleMathHandler) Auth(r *http.Request,
 	case 1:
 		// If second step, check for solution
 		if c.AuthToken == nil || len(c.AuthData) != 1 {
-			return AuthResponse{Response: []string{"auth token not provided or missing auth data"}}
+			return types.AuthResponse{Response: []string{"auth token not provided or missing auth data"}}
 		}
 		solution, err := ih.getToken(c.AuthToken.String())
 		if err != nil {
-			return AuthResponse{Response: []string{"auth token not found"}}
+			return types.AuthResponse{Response: []string{"auth token not found"}}
 		}
 		userSolution, err := strconv.Atoi(c.AuthData[0])
 		if err != nil {
-			return AuthResponse{Response: []string{"invalid solution format"}}
+			return types.AuthResponse{Response: []string{"invalid solution format"}}
 		}
 		if solution != userSolution {
-			return AuthResponse{Response: []string{"invalid math challenge solution"}}
+			return types.AuthResponse{Response: []string{"invalid math challenge solution"}}
 		}
 		ih.delToken(c.AuthToken.String())
 		log.Infof("new user registered, challenge resolved %s", c.AuthData[0])
-		return AuthResponse{
+		return types.AuthResponse{
 			Response: []string{"challenge resolved!"},
 			Success:  true,
 		}
 	}
 
-	return AuthResponse{Response: []string{"invalid auth step"}}
+	return types.AuthResponse{Response: []string{"invalid auth step"}}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

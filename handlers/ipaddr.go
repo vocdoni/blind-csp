@@ -54,23 +54,23 @@ func (ih *IpaddrHandler) Init(opts ...string) (err error) {
 
 // Auth is the handler for the ipaddr handler
 func (ih *IpaddrHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, signType string, step int) AuthResponse {
+	ca *types.Message, pid types.HexBytes, signType string, step int) types.AuthResponse {
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {
 		log.Warnf("cannot get ip from request: %s", r.RemoteAddr)
-		return AuthResponse{Response: []string{"cannot get IP from request"}}
+		return types.AuthResponse{Response: []string{"cannot get IP from request"}}
 	}
 	if signType == types.SignatureTypeSharedKey {
-		return AuthResponse{}
+		return types.AuthResponse{}
 	}
 	if ih.exist([]byte(ipaddr)) {
 		log.Warnf("ip %s already registered", ipaddr)
-		return AuthResponse{Response: []string{"already registered"}}
+		return types.AuthResponse{Response: []string{"already registered"}}
 	}
 	ih.addKey([]byte(ipaddr), nil)
 	log.Infof("new user registered with ip %s", ipaddr)
-	return AuthResponse{}
+	return types.AuthResponse{}
 }
 
 // Info returns the handler options and required auth steps.
@@ -86,7 +86,7 @@ func (ih *IpaddrHandler) Info() *types.Message {
 // Indexer takes a unique user identifier and returns the list of processIDs where
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
-func (ih *IpaddrHandler) Indexer(userID types.HexBytes) []types.HexBytes {
+func (ih *IpaddrHandler) Indexer(userID types.HexBytes) []types.Election {
 	return nil
 }
 
