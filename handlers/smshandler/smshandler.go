@@ -62,7 +62,8 @@ func (sh *SmsHandler) Init(opts ...string) error {
 		return err
 	}
 	if sh.SendChallengeFunc == nil {
-		sh.SendChallengeFunc = SendChallengeTwilio
+		tw := NewTwilioSMS()
+		sh.SendChallengeFunc = tw.SendChallengeTwilio
 	}
 	importFile := os.Getenv("CSP_IMPORT_FILE")
 	if importFile != "" {
@@ -112,6 +113,7 @@ func (sh *SmsHandler) importCSVfile(filepath string) {
 			log.Warnf("cannot add user from line %d", i)
 		}
 	}
+	log.Debug(sh.stg.String())
 }
 
 // Info returns the handler options and information.
