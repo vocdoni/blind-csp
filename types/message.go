@@ -113,16 +113,6 @@ type Election struct {
 	Consumed          bool     `json:"consumed"`
 }
 
-// HexBytesToElection transforms a slice of HexBytes to []Election.
-// All entries are set with RemainingAttempts = attempts.
-func HexBytesToElection(electionIDs []HexBytes, attempts int) []Election {
-	elections := []Election{}
-	for _, e := range electionIDs {
-		elections = append(elections, Election{ElectionID: e, RemainingAttempts: attempts})
-	}
-	return elections
-}
-
 // AuthField is the type used by the Info method for returning the description of the
 // authentication steps for the CSP implementation.
 type AuthField struct {
