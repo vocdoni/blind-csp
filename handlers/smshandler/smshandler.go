@@ -1,7 +1,6 @@
 package smshandler
 
 import (
-	"encoding/binary"
 	"encoding/csv"
 	"fmt"
 	"math/rand"
@@ -9,14 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/vocdoni/blind-csp/types"
-	"go.vocdoni.io/dvote/db"
-	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -27,8 +23,6 @@ const DefaultMaxSMSattempts = 5
 type SmsHandler struct {
 	stg                 Storage
 	forceElectionsMatch bool
-	challengeDB         db.Database
-	challengeLock       sync.RWMutex
 	mathRandom          *rand.Rand
 	SendChallengeFunc   func(phone *phonenumbers.PhoneNumber, challenge int) error
 }
@@ -45,6 +39,7 @@ func (sh *SmsHandler) Init(opts ...string) error {
 		return fmt.Errorf("no data dir provided")
 	}
 	var err error
+	// set default max attempts
 	maxAttempts := DefaultMaxSMSattempts
 	if len(opts) > 1 {
 		maxAttempts, err = strconv.Atoi(opts[1])
@@ -52,19 +47,23 @@ func (sh *SmsHandler) Init(opts ...string) error {
 			return err
 		}
 	}
-	sh.stg = &JSONstorage{}
-	sh.challengeDB, err = metadb.New(db.TypePebble, filepath.Join(opts[0], "challenges"))
-	if err != nil {
-		return err
+	// if MongoDB env var is defined, use MongoDB as storage backend
+	if os.Getenv("CSP_MONGODB_URL") != "" {
+		sh.stg = &MongoStorage{}
+	} else {
+		sh.stg = &JSONstorage{}
 	}
+	// set math random source
 	sh.mathRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
 	if err := sh.stg.Init(filepath.Join(opts[0], "storage"), maxAttempts); err != nil {
 		return err
 	}
+	// set challenge function (if not defined, use Twilio)
 	if sh.SendChallengeFunc == nil {
 		tw := NewTwilioSMS()
 		sh.SendChallengeFunc = tw.SendChallengeTwilio
 	}
+	// check for files to import to the storage database
 	importFile := os.Getenv("CSP_IMPORT_FILE")
 	if importFile != "" {
 		sh.importCSVfile(importFile)
@@ -148,45 +147,6 @@ func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
 		indexerElections = append(indexerElections, ie)
 	}
 	return indexerElections
-}
-
-func (sh *SmsHandler) checkChallenge(solution string, token *uuid.UUID) (bool, types.HexBytes) {
-	sh.challengeLock.Lock()
-	defer sh.challengeLock.Unlock()
-	tx := sh.challengeDB.WriteTx()
-	defer tx.Discard()
-	v, err := tx.Get([]byte(token.String()))
-	if err != nil {
-		return false, nil
-	}
-	providedSolution, err := strconv.Atoi(solution)
-	if err != nil {
-		log.Warnf("cannot atoi solution string %s", solution)
-		return false, nil
-	}
-	challengeSolution := int(binary.BigEndian.Uint32(v))
-
-	userID, err := tx.Get([]byte("userid_" + token.String()))
-	if err != nil {
-		return false, nil
-	}
-
-	// clean both entries
-	if err := tx.Delete([]byte(token.String())); err != nil {
-		log.Warn(err)
-		return false, nil
-	}
-	if err := tx.Delete([]byte("userid_" + token.String())); err != nil {
-		log.Warn(err)
-		return false, nil
-	}
-
-	// commit
-	if err := tx.Commit(); err != nil {
-		log.Warn(err)
-		return false, nil
-	}
-	return providedSolution == challengeSolution, types.HexBytes(userID)
 }
 
 // Auth is the handler method for managing the simple math authentication challenge.

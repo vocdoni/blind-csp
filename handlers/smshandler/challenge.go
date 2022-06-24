@@ -23,7 +23,7 @@ func NewTwilioSMS() *TwilioSMS {
 	var tw TwilioSMS
 	tw.from = os.Getenv("TWILIO_FROM")
 	if tw.from == "" {
-		tw.from = "vocdoni.app"
+		tw.from = "vocdoni"
 	}
 	tw.body = os.Getenv("TWILIO_BODY")
 	if tw.body == "" {

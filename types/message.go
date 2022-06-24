@@ -70,9 +70,13 @@ func (b HexBytes) String() string {
 		return ""
 	}
 	return string(str)
+	//return fmt.Sprintf("%x", []byte(b))
 }
 
 func (b *HexBytes) FromString(str string) error {
+	//	data, err := hex.DecodeString(str)
+	//	b = (*HexBytes)(&data)
+	//	return err
 	return b.UnmarshalBinary([]byte(str))
 }
 

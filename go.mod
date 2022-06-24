@@ -12,5 +12,6 @@ require (
 	github.com/spf13/viper v1.10.1
 	github.com/tendermint/tendermint v0.34.15 // indirect
 	github.com/twilio/twilio-go v0.26.0 // indirect
+	go.mongodb.org/mongo-driver v1.9.1 // indirect
 	go.vocdoni.io/dvote v1.0.4-0.20220210143454-e386915ab3d5
 )

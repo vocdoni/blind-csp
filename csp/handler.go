@@ -100,7 +100,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 
 	// Process ID
 	var pid types.HexBytes
-	if err := pid.UnmarshalBinary([]byte(ctx.URLParam("processId"))); err != nil {
+	if err := pid.FromString(ctx.URLParam("processId")); err != nil {
 		return fmt.Errorf("cannot decode processId: %w", err)
 	}
 	if len(pid) != processIDSize {

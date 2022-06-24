@@ -12,6 +12,9 @@ import (
 // ErrTooManyAttempts is returned when no more SMS attempts available for a user.
 var ErrTooManyAttempts = fmt.Errorf("too many SMS tries")
 
+// ErrUserUnknown is returned if the userID is not found in the database.
+var ErrUserUnknown = fmt.Errorf("user is unknown")
+
 // ErrUserAlreadyVerified is returned if the user is already verified when trying to verify it.
 var ErrUserAlreadyVerified = fmt.Errorf("user is already verified")
 
@@ -31,17 +34,23 @@ type Users struct {
 
 // UserData represents a user of the SMS handler.
 type UserData struct {
-	Elections []UserElection            `json:"elections,omitempty"`
-	ExtraData string                    `json:"extraData,omitempty"`
-	Phone     *phonenumbers.PhoneNumber `json:"phone,omitempty"`
+	UserID    types.HexBytes            `json:"userID,omitempty" bson:"_id"`
+	Elections []UserElection            `json:"elections,omitempty" bson:"elections,omitempty"`
+	ExtraData string                    `json:"extraData,omitempty" bson:"extradata,omitempty"`
+	Phone     *phonenumbers.PhoneNumber `json:"phone,omitempty" bson:"phone,omitempty"`
 }
 
 type UserElection struct {
-	ElectionID        types.HexBytes `json:"electionId"`
-	RemainingAttempts int            `json:"remainingAttempts"`
-	Consumed          bool           `json:"consumed"`
-	AuthToken         *uuid.UUID     `json:"authToken,omitempty"`
-	Challenge         int            `json:"challenge,omitempty"`
+	ElectionID        types.HexBytes `json:"electionId" bson:"_id"`
+	RemainingAttempts int            `json:"remainingAttempts" bson:"remainingattempts"`
+	Consumed          bool           `json:"consumed" bson:"consumed"`
+	AuthToken         *uuid.UUID     `json:"authToken,omitempty" bson:"authtoken,omitempty"`
+	Challenge         int            `json:"challenge,omitempty" bson:"challenge,omitempty"`
+}
+
+type AuthTokenIndex struct {
+	AuthToken *uuid.UUID     `json:"authToken" bson:"_id"`
+	UserID    types.HexBytes `json:"userID" bson:"userid"`
 }
 
 // HexBytesToElection transforms a slice of HexBytes to []Election.
