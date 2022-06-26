@@ -24,6 +24,7 @@ import (
 // TODO: check if authToken is unknown or invalid and userID is valid, the attempt should not be invalidated?
 /// Only if authtoken is known the attempt should be counted!
 
+// MongoStorage uses an external MongoDB service for stoting the user data of the smshandler.
 type MongoStorage struct {
 	users          *mongo.Collection
 	tokenIndex     *mongo.Collection
@@ -117,7 +118,7 @@ func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexByt
 	return err
 }
 
-func (ms *MongoStorage) GetElections(userID types.HexBytes) ([]UserElection, error) {
+func (ms *MongoStorage) Elections(userID types.HexBytes) ([]UserElection, error) {
 	ms.keysLock.RLock()
 	defer ms.keysLock.RUnlock()
 	user, err := ms.getUserData(userID)
@@ -231,7 +232,7 @@ func (ms *MongoStorage) Exists(userID types.HexBytes) bool {
 	return err == nil
 }
 
-func (ms *MongoStorage) IsVerified(userID, electionID types.HexBytes) (bool, error) {
+func (ms *MongoStorage) Verified(userID, electionID types.HexBytes) (bool, error) {
 	ms.keysLock.RLock()
 	defer ms.keysLock.RUnlock()
 	user, err := ms.getUserData(userID)

@@ -66,7 +66,7 @@ func (ih *SimpleMathHandler) delToken(token string) {
 }
 
 // GetName returns the name of the handler
-func (ih *SimpleMathHandler) GetName() string {
+func (ih *SimpleMathHandler) Name() string {
 	return "simpleMath"
 }
 

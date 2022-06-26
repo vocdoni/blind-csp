@@ -71,8 +71,8 @@ func (rh *RsaHandler) exist(voterID, processID []byte) bool {
 	return err == nil
 }
 
-// GetName returns the name of the handler
-func (rh *RsaHandler) GetName() string {
+// Name returns the name of the handler
+func (rh *RsaHandler) Name() string {
 	return "rsa"
 }
 

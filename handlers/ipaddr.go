@@ -40,8 +40,8 @@ func (ih *IpaddrHandler) exist(index []byte) bool {
 	return err == nil
 }
 
-// GetName returns the name of the handler
-func (ih *IpaddrHandler) GetName() string {
+// Name returns the name of the handler
+func (ih *IpaddrHandler) Name() string {
 	return "uniqueIp"
 }
 

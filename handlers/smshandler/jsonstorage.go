@@ -15,6 +15,8 @@ import (
 
 const authTokenIndexPrefix = "at_"
 
+// JSONstorage uses a local KV database (Pebble) for storing the smshandler user data.
+// JSON is used for data serialization.
 type JSONstorage struct {
 	kv             db.Database
 	keysLock       sync.RWMutex
@@ -60,7 +62,7 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 	return tx.Commit()
 }
 
-func (js *JSONstorage) GetElections(userID types.HexBytes) ([]UserElection, error) {
+func (js *JSONstorage) Elections(userID types.HexBytes) ([]UserElection, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
 	tx := js.kv.WriteTx()
@@ -173,7 +175,7 @@ func (js *JSONstorage) Exists(userID types.HexBytes) bool {
 	return err == nil
 }
 
-func (js *JSONstorage) IsVerified(userID, electionID types.HexBytes) (bool, error) {
+func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
 	tx := js.kv.WriteTx()

@@ -186,7 +186,7 @@ func main() {
 	log.Infof("CSP root public key: %s", pub)
 	cs, err := csp.NewBlindCSP(
 		priv,
-		path.Join(dataDir, authHandler.GetName()),
+		path.Join(dataDir, authHandler.Name()),
 		csp.BlindCSPcallbacks{
 			Auth:    authHandler.Auth,
 			Info:    authHandler.Info,

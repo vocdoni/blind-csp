@@ -8,7 +8,7 @@ import (
 	"github.com/vocdoni/blind-csp/types"
 )
 
-func TestStorage(t *testing.T) {
+func TestStorageJSON(t *testing.T) {
 	js := &JSONstorage{}
 	testStorage(t, js)
 }
@@ -65,12 +65,12 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, valid, qt.IsFalse)
 
 	// Test get elections
-	elections, err := stg.GetElections(testStrToHex(t, testStorageUser3))
+	elections, err := stg.Elections(testStrToHex(t, testStorageUser3))
 	qt.Assert(t, err, qt.IsNil)
-	qt.Assert(t, len(elections), qt.Equals, 2)
+	qt.Assert(t, elections, qt.HasLen, 2)
 
 	// Test verified
-	valid, err = stg.IsVerified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
+	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
@@ -122,11 +122,11 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, err, qt.IsNotNil)
 
 	// Test verified
-	valid, err = stg.IsVerified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
+	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
 
-	valid, err = stg.IsVerified(testStrToHex(t, testStorageUser2), testStrToHex(t, testStorageProcess2))
+	valid, err = stg.Verified(testStrToHex(t, testStorageUser2), testStrToHex(t, testStorageProcess2))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
@@ -153,21 +153,23 @@ func testStorageToHex(t *testing.T, user string, pids []string) (types.HexBytes,
 	return uh, ph
 }
 
-var testStorageProcess1 = "8e8353d179a60dc8e12f7c68c2b2dfebc7c34d3f01c49122a9ad4fe632c15216"
-var testStorageProcess2 = "e1fed0c1bf0bf797cedfa30e1d92ecf7a9047b53043ea8a242388c276855ccaf"
-var testStorageUser1 = "d763cda19aa52c2ff6e13a02989413e47abbee356bf0a8a21a73fc9af48d6ed2"
-var testStoragePhone1 = "+34655111222"
-var testStorageUser2 = "316008c51db028fa544dbf68a4c70811728b602fee46a5d0c8dc0f6300a3c474"
-var testStoragePhone2 = "677888999"
-var testStorageUser3 = "0467aa5a72daf0286ad89c5220f84a7b2133fbd51ab5d3a85a049a645f54f32f"
-var testStoragePhone3 = "+1-541-754-3010"
-var testStorageUserNonExists = "22fa4de0788c38755239589dfa18a8d7adbe8bb96425c4641389008470fa0377"
+var (
+	testStorageProcess1      = "8e8353d179a60dc8e12f7c68c2b2dfebc7c34d3f01c49122a9ad4fe632c15216"
+	testStorageProcess2      = "e1fed0c1bf0bf797cedfa30e1d92ecf7a9047b53043ea8a242388c276855ccaf"
+	testStorageUser1         = "d763cda19aa52c2ff6e13a02989413e47abbee356bf0a8a21a73fc9af48d6ed2"
+	testStoragePhone1        = "+34655111222"
+	testStorageUser2         = "316008c51db028fa544dbf68a4c70811728b602fee46a5d0c8dc0f6300a3c474"
+	testStoragePhone2        = "677888999"
+	testStorageUser3         = "0467aa5a72daf0286ad89c5220f84a7b2133fbd51ab5d3a85a049a645f54f32f"
+	testStoragePhone3        = "+1-541-754-3010"
+	testStorageUserNonExists = "22fa4de0788c38755239589dfa18a8d7adbe8bb96425c4641389008470fa0377"
 
-var testStorageUsers = map[string]testUserData{
-	testStorageUser1: {elections: []string{testStorageProcess1}, phone: testStoragePhone1},
-	testStorageUser2: {elections: []string{testStorageProcess2}, phone: testStoragePhone2},
-	testStorageUser3: {elections: []string{testStorageProcess1, testStorageProcess2}, phone: testStoragePhone3},
-}
+	testStorageUsers = map[string]testUserData{
+		testStorageUser1: {elections: []string{testStorageProcess1}, phone: testStoragePhone1},
+		testStorageUser2: {elections: []string{testStorageProcess2}, phone: testStoragePhone2},
+		testStorageUser3: {elections: []string{testStorageProcess1, testStorageProcess2}, phone: testStoragePhone3},
+	}
+)
 
 type testUserData struct {
 	elections []string

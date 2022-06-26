@@ -31,7 +31,7 @@ type IndexerFunc = func(userID types.HexBytes) (elections []types.Election)
 //  3. sharedkey: performs a plain ECDSA signature over hash(processId)
 type AuthHandler interface {
 	Init(opts ...string) error
-	GetName() string
+	Name() string
 	Auth(httpRequest *http.Request,
 		message *types.Message,
 		electionID types.HexBytes,

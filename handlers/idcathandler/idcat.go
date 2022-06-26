@@ -19,39 +19,37 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-// IDcatSubject is a string that must be present on the HTTP/TLS certificate
-const IDcatSubject = "CONSORCI ADMINISTRACIO OBERTA DE CATALUNYA"
+const (
+	// IDcatSubject is a string that must be present on the HTTP/TLS certificate
+	IDcatSubject = "CONSORCI ADMINISTRACIO OBERTA DE CATALUNYA"
+	// CRLupdateInterval defines the CRL update interval
+	CRLupdateInterval = time.Hour * 24
+	// CRLupdateDaemonCheckInterval Time to sleep between CRLupdateInternal is checked
+	CRLupdateDaemonCheckInterval = time.Second * 10
+)
 
-// CRLupdateInterval defines the CRL update interval
-const CRLupdateInterval = time.Hour * 24
-
-// CRLupdateDaemonCheckInterval Time to sleep between CRLupdateInternal is checked
-const CRLupdateDaemonCheckInterval = time.Second * 10
-
-// Extracts the DNI from idCat
-var regexpDNI = regexp.MustCompile("[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
-
-// Extracts NIE from idCat
-var regexpNIE = regexp.MustCompile("[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]")
-
-// Extracts NIE from idCat (old)
-var regexpNIEold = regexp.MustCompile("X[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
-
-// Extracts Passport from idCat
-var regexpPSP = regexp.MustCompile("[A-Z]{3}[0-9]{6}[A-Z]?")
-
-var extractIDcatFunc = func(cert *x509.Certificate) string {
-	if id := regexpDNI.FindString(cert.Subject.SerialNumber); len(id) > 0 {
-		return id
+var (
+	// Extracts the DNI from idCat
+	regexpDNI = regexp.MustCompile("[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
+	// Extracts NIE from idCat
+	regexpNIE = regexp.MustCompile("[XYZ][0-9]{7}[TRWAGMYFPDXBNJZSQVHLCKE]")
+	// Extracts NIE from idCat (old)
+	regexpNIEold = regexp.MustCompile("X[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]")
+	// Extracts Passport from idCat
+	regexpPSP        = regexp.MustCompile("[A-Z]{3}[0-9]{6}[A-Z]?")
+	extractIDcatFunc = func(cert *x509.Certificate) string {
+		if id := regexpDNI.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+			return id
+		}
+		if id := regexpNIE.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+			return id
+		}
+		if id := regexpNIEold.FindString(cert.Subject.SerialNumber); len(id) > 0 {
+			return id
+		}
+		return regexpPSP.FindString(cert.Subject.SerialNumber)
 	}
-	if id := regexpNIE.FindString(cert.Subject.SerialNumber); len(id) > 0 {
-		return id
-	}
-	if id := regexpNIEold.FindString(cert.Subject.SerialNumber); len(id) > 0 {
-		return id
-	}
-	return regexpPSP.FindString(cert.Subject.SerialNumber)
-}
+)
 
 type idcatCert struct {
 	crtURL      string
@@ -241,8 +239,8 @@ func (ih *IDcatHandler) updateCrlDaemon() {
 	}
 }
 
-// GetName returns the name of the handler
-func (ih *IDcatHandler) GetName() string {
+// Name returns the name of the handler
+func (ih *IDcatHandler) Name() string {
 	return "idCat"
 }
 

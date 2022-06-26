@@ -18,7 +18,7 @@ func (dh *DummyHandler) Init(opts ...string) error {
 }
 
 // GetName returns the name of the handler
-func (dh *DummyHandler) GetName() string {
+func (dh *DummyHandler) Name() string {
 	return "dummy"
 }
 

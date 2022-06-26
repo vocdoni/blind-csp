@@ -28,7 +28,7 @@ type SmsHandler struct {
 }
 
 // GetName returns the name of the handler
-func (sh *SmsHandler) GetName() string {
+func (sh *SmsHandler) Name() string {
 	return "smsHandler"
 }
 
@@ -132,7 +132,7 @@ func (sh *SmsHandler) Info() *types.Message {
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
 func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
-	elections, err := sh.stg.GetElections(userID)
+	elections, err := sh.stg.Elections(userID)
 	if err != nil {
 		log.Warnf("cannot get indexer elections: %v", err)
 		return nil
