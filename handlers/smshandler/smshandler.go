@@ -21,10 +21,9 @@ const DefaultMaxSMSattempts = 5
 
 // SmsHandler is a handler that requires a simple math operation to be resolved.
 type SmsHandler struct {
-	stg                 Storage
-	forceElectionsMatch bool
-	mathRandom          *rand.Rand
-	SendChallengeFunc   func(phone *phonenumbers.PhoneNumber, challenge int) error
+	stg               Storage
+	mathRandom        *rand.Rand
+	SendChallengeFunc func(phone *phonenumbers.PhoneNumber, challenge int) error
 }
 
 // GetName returns the name of the handler
@@ -79,7 +78,11 @@ func (sh *SmsHandler) importCSVfile(filepath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	// read csv values using csv.Reader
 	csvReader := csv.NewReader(f)
@@ -152,7 +155,6 @@ func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
 // Auth is the handler method for managing the simple math authentication challenge.
 func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 	electionID types.HexBytes, signType string, step int) types.AuthResponse {
-
 	switch step {
 	case 0:
 		// If first step, build new challenge

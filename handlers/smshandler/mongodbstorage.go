@@ -21,7 +21,8 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-// TODO: check if authToken is unknown or invalid and userID is valid, the attempt should not be invalidated?
+// TODO: check if authToken is unknown or invalid and userID is valid,
+// the attempt should not be invalidated.
 /// Only if authtoken is known the attempt should be counted!
 
 // MongoStorage uses an external MongoDB service for stoting the user data of the smshandler.
@@ -101,6 +102,7 @@ func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexByt
 	defer ms.keysLock.Unlock()
 
 	maxAttempts := ms.maxSmsAttempts * len(processIDs)
+	// nolint[:ineffassign]
 	if maxAttempts == 0 {
 		maxAttempts = ms.maxSmsAttempts
 	}
@@ -150,7 +152,8 @@ func (ms *MongoStorage) updateUser(user *UserData) error {
 	return nil
 }
 
-func (ms *MongoStorage) BelongsToElection(userID types.HexBytes, electionID types.HexBytes) (bool, error) {
+func (ms *MongoStorage) BelongsToElection(userID types.HexBytes,
+	electionID types.HexBytes) (bool, error) {
 	ms.keysLock.RLock()
 	defer ms.keysLock.RUnlock()
 	user, err := ms.getUserData(userID)
@@ -246,7 +249,8 @@ func (ms *MongoStorage) Verified(userID, electionID types.HexBytes) (bool, error
 	return user.Elections[ei].Consumed, nil
 }
 
-func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes, token *uuid.UUID, solution int) error {
+func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
+	token *uuid.UUID, solution int) error {
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
 
@@ -271,7 +275,7 @@ func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes, token *uuid.U
 	if ei == -1 {
 		return ErrUserNotBelongsToElection
 	}
-	if user.Elections[ei].Consumed == true {
+	if user.Elections[ei].Consumed {
 		return ErrUserAlreadyVerified
 	}
 	if user.Elections[ei].AuthToken.String() != token.String() {

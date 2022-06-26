@@ -106,7 +106,6 @@ func (ih *SimpleMathHandler) Redirect(clientID []byte) ([][]byte, error) {
 // Auth is the handler method for managing the simple math authentication challenge.
 func (ih *SimpleMathHandler) Auth(r *http.Request,
 	c *types.Message, pid types.HexBytes, signType string, step int) types.AuthResponse {
-
 	switch step {
 	case 0:
 		// If first step, build new challenge

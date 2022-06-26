@@ -16,7 +16,7 @@ var (
 	ErrUserUnknown = fmt.Errorf("user is unknown")
 	// ErrUserAlreadyVerified is returned if the user is already verified when trying to verify it.
 	ErrUserAlreadyVerified = fmt.Errorf("user is already verified")
-	// ErrUserNotBelongsToElection is returned if the user does not has participation rights for an election.
+	// ErrUserNotBelongsToElection is returned if the user does not has participation rights.
 	ErrUserNotBelongsToElection = fmt.Errorf("user does not belong to election")
 	// ErrInvalidAuthToken is returned if the authtoken does not match with the election.
 	ErrInvalidAuthToken = fmt.Errorf("invalid authentication token")

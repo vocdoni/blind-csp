@@ -45,6 +45,7 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 	defer tx.Discard()
 	maxAttempts := js.maxSmsAttempts * len(processIDs)
 	if maxAttempts == 0 {
+		// nolint[:gosimple]
 		maxAttempts = js.maxSmsAttempts
 	}
 	user := UserData{
@@ -78,7 +79,8 @@ func (js *JSONstorage) Elections(userID types.HexBytes) ([]UserElection, error) 
 	return user.Elections, nil
 }
 
-func (js *JSONstorage) BelongsToElection(userID types.HexBytes, electionID types.HexBytes) (bool, error) {
+func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
+	electionID types.HexBytes) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
 	tx := js.kv.WriteTx()
@@ -195,7 +197,8 @@ func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error)
 	return user.Elections[ei].Consumed, nil
 }
 
-func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes, token *uuid.UUID, solution int) error {
+func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
+	token *uuid.UUID, solution int) error {
 	js.keysLock.Lock()
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
@@ -222,7 +225,7 @@ func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes, token *uuid.UU
 	if ei == -1 {
 		return ErrUserNotBelongsToElection
 	}
-	if user.Elections[ei].Consumed == true {
+	if user.Elections[ei].Consumed {
 		return ErrUserAlreadyVerified
 	}
 	if user.Elections[ei].AuthToken.String() != token.String() {
@@ -273,21 +276,26 @@ func (js *JSONstorage) String() string {
 	defer js.keysLock.RUnlock()
 	var output Users
 	output.Users = make(map[string]UserData)
-	js.kv.Iterate(nil, func(key, value []byte) bool {
+	if err := js.kv.Iterate(nil, func(key, value []byte) bool {
 		var data UserData
 
 		err := json.Unmarshal(value, &data)
 		if err != nil {
 			log.Warn(err)
 		}
+		// nolint[:ineffassign]
 		var user types.HexBytes
 		user = key
 		output.Users[user.String()] = data
 		return true
-	})
+	}); err != nil {
+		log.Warn(err)
+		return ""
+	}
 	outputData, err := json.MarshalIndent(output, "", " ")
 	if err != nil {
-		panic(err)
+		log.Warn(err)
+		return ""
 	}
 	return string(outputData)
 }

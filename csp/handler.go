@@ -110,7 +110,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	// Auth Step
 	step, err := strconv.Atoi(ctx.URLParam("step"))
 	if err != nil {
-		step = 0 // For backwards compability
+		step = 0 // For backwards compatibility
 	}
 
 	// Signature type and auth callback

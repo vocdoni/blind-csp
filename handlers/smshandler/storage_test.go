@@ -147,7 +147,9 @@ func testStorageToHex(t *testing.T, user string, pids []string) (types.HexBytes,
 	ph := []types.HexBytes{}
 	for _, p := range pids {
 		ph1 := types.HexBytes{}
-		ph1.FromString(p)
+		if err := ph1.FromString(p); err != nil {
+			t.Fatal(err)
+		}
 		ph = append(ph, ph1)
 	}
 	return uh, ph
@@ -167,7 +169,10 @@ var (
 	testStorageUsers = map[string]testUserData{
 		testStorageUser1: {elections: []string{testStorageProcess1}, phone: testStoragePhone1},
 		testStorageUser2: {elections: []string{testStorageProcess2}, phone: testStoragePhone2},
-		testStorageUser3: {elections: []string{testStorageProcess1, testStorageProcess2}, phone: testStoragePhone3},
+		testStorageUser3: {
+			elections: []string{testStorageProcess1, testStorageProcess2},
+			phone:     testStoragePhone3,
+		},
 	}
 )
 

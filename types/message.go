@@ -70,7 +70,6 @@ func (b HexBytes) String() string {
 		return ""
 	}
 	return string(str)
-	//return fmt.Sprintf("%x", []byte(b))
 }
 
 func (b *HexBytes) FromString(str string) error {
