@@ -43,40 +43,14 @@ func (m *Message) Unmarshal(data []byte) error {
 // base64 default.
 type HexBytes []byte
 
-func (b HexBytes) MarshalBinary() (data []byte, err error) {
-	enc := make([]byte, hex.EncodedLen(len(b)))
-	hex.Encode(enc[0:], b)
-	return enc, nil
-}
-
-func (b *HexBytes) UnmarshalBinary(data []byte) error {
-	// Strip a leading "0x" prefix, for backwards compatibility.
-	if len(data) >= 2 && data[0] == '0' && (data[1] == 'x' || data[1] == 'X') {
-		data = data[2:]
-	}
-	decLen := hex.DecodedLen(len(data))
-	if cap(*b) < decLen {
-		*b = make([]byte, decLen)
-	}
-	if _, err := hex.Decode(*b, data); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (b HexBytes) String() string {
-	str, err := b.MarshalBinary()
-	if err != nil {
-		return ""
-	}
-	return string(str)
+	return hex.EncodeToString(b)
 }
 
 func (b *HexBytes) FromString(str string) error {
-	//	data, err := hex.DecodeString(str)
-	//	b = (*HexBytes)(&data)
-	//	return err
-	return b.UnmarshalBinary([]byte(str))
+	var err error
+	(*b), err = hex.DecodeString(str)
+	return err
 }
 
 func (b HexBytes) MarshalJSON() ([]byte, error) {
