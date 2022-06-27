@@ -7,6 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.13
 	github.com/frankban/quicktest v1.14.0
 	github.com/google/uuid v1.3.0
+	github.com/messagebird/go-rest-api/v7 v7.1.0
 	github.com/nyaruka/phonenumbers v1.0.75
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
