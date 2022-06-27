@@ -59,9 +59,14 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	}
 	// set challenge function (if not defined, use Twilio)
 	if sh.SendChallengeFunc == nil {
-		tw := NewTwilioSMS()
-		sh.SendChallengeFunc = tw.SendChallengeTwilio
+		switch os.Getenv("SMS_PROVIDER") {
+		case "messagebird":
+			sh.SendChallengeFunc = NewMessageBirdSMS().SendChallenge
+		default:
+			sh.SendChallengeFunc = NewTwilioSMS().SendChallenge
+		}
 	}
+
 	// check for files to import to the storage database
 	importFile := os.Getenv("CSP_IMPORT_FILE")
 	if importFile != "" {
