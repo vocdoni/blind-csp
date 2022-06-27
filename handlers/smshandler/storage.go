@@ -26,7 +26,7 @@ var (
 
 // Users is the list of smshandler users.
 type Users struct {
-	Users map[string]UserData `json:"users"`
+	Users []types.HexBytes `json:"users"`
 }
 
 // UserData represents a user of the SMS handler.
@@ -83,12 +83,18 @@ type Storage interface {
 	Init(dataDir string, maxAttempts int) (err error)
 	// adds a new user to the storage
 	AddUser(userID types.HexBytes, processIDs []types.HexBytes, phone, extra string) (err error)
-	// returns the list of elections for a user
-	Elections(userID types.HexBytes) (elections []UserElection, err error)
+	// returns the list of users
+	Users() (users *Users, err error)
+	// returns the full information of a user, including the election list.
+	User(userID types.HexBytes) (user *UserData, err error)
+	// updates a user
+	UpdateUser(udata *UserData) (err error)
 	// returns true if the user belongs to the electionID
 	BelongsToElection(userID, electionID types.HexBytes) (belongs bool, err error)
 	// increment by one the attempt counter
 	IncreaseAttempt(userID, electionID types.HexBytes) (err error)
+	// returns the default max attempts
+	MaxAttempts() (attempts int)
 	// returns the phone and decrease attempt counter
 	NewAttempt(userID, electionID types.HexBytes, challenge int,
 		token *uuid.UUID) (phone *phonenumbers.PhoneNumber, err error)

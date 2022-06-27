@@ -92,6 +92,38 @@ func (ms *MongoStorage) Init(dataDir string, maxAttempts int) error {
 	return nil
 }
 
+func (ms *MongoStorage) MaxAttempts() int {
+	ms.keysLock.RLock()
+	defer ms.keysLock.RUnlock()
+	return ms.maxSmsAttempts
+}
+
+func (ms *MongoStorage) Users() (*Users, error) {
+	ms.keysLock.RLock()
+	defer ms.keysLock.RUnlock()
+	opts := options.FindOptions{}
+	opts.SetProjection(bson.M{"_id": true})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cur, err := ms.users.Find(ctx, bson.M{}, &opts)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel2()
+	var users Users
+	for cur.Next(ctx) {
+		user := UserData{}
+		err := cur.Decode(&user)
+		if err != nil {
+			log.Warn(err)
+		}
+		users.Users = append(users.Users, user.UserID)
+	}
+	return &users, nil
+}
+
 func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
 	phone, extra string) error {
 	phoneNum, err := phonenumbers.Parse(phone, "ES")
@@ -120,14 +152,14 @@ func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexByt
 	return err
 }
 
-func (ms *MongoStorage) Elections(userID types.HexBytes) ([]UserElection, error) {
+func (ms *MongoStorage) User(userID types.HexBytes) (*UserData, error) {
 	ms.keysLock.RLock()
 	defer ms.keysLock.RUnlock()
 	user, err := ms.getUserData(userID)
 	if err != nil {
 		return nil, err
 	}
-	return user.Elections, nil
+	return user, nil
 }
 
 func (ms *MongoStorage) getUserData(userID types.HexBytes) (*UserData, error) {
@@ -150,6 +182,12 @@ func (ms *MongoStorage) updateUser(user *UserData) error {
 		return fmt.Errorf("cannot update object: %w", err)
 	}
 	return nil
+}
+
+func (ms *MongoStorage) UpdateUser(udata *UserData) error {
+	ms.keysLock.RLock()
+	defer ms.keysLock.RUnlock()
+	return ms.updateUser(udata)
 }
 
 func (ms *MongoStorage) BelongsToElection(userID types.HexBytes,
@@ -181,7 +219,7 @@ func (ms *MongoStorage) IncreaseAttempt(userID, electionID types.HexBytes) error
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err = ms.users.UpdateOne(ctx, bson.M{"_id": userID}, user)
+	_, err = ms.users.ReplaceOne(ctx, bson.M{"_id": userID}, user)
 	if err != nil {
 		return fmt.Errorf("cannot update object: %w", err)
 	}

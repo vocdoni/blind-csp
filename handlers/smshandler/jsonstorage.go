@@ -33,6 +33,11 @@ func (js *JSONstorage) Init(dataDir string, maxAttempts int) error {
 	return nil
 }
 
+// TODO
+func (js *JSONstorage) Users() (*Users, error) {
+	return nil, nil
+}
+
 func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
 	phone, extra string) error {
 	phoneNum, err := phonenumbers.Parse(phone, "ES")
@@ -63,7 +68,13 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 	return tx.Commit()
 }
 
-func (js *JSONstorage) Elections(userID types.HexBytes) ([]UserElection, error) {
+func (js *JSONstorage) MaxAttempts() int {
+	js.keysLock.RLock()
+	defer js.keysLock.RUnlock()
+	return js.maxSmsAttempts
+}
+
+func (js *JSONstorage) User(userID types.HexBytes) (*UserData, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
 	tx := js.kv.WriteTx()
@@ -76,7 +87,25 @@ func (js *JSONstorage) Elections(userID types.HexBytes) ([]UserElection, error) 
 	if err := json.Unmarshal(userData, &user); err != nil {
 		return nil, err
 	}
-	return user.Elections, nil
+	return &user, nil
+}
+
+func (js *JSONstorage) UpdateUser(udata *UserData) error {
+	js.keysLock.RLock()
+	defer js.keysLock.RUnlock()
+	tx := js.kv.WriteTx()
+	defer tx.Discard()
+	if udata.UserID == nil {
+		return ErrUserUnknown
+	}
+	userData, err := json.Marshal(udata)
+	if err != nil {
+		return err
+	}
+	if err := tx.Set(udata.UserID, userData); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
@@ -274,8 +303,7 @@ func (js *JSONstorage) DelUser(userID types.HexBytes) error {
 func (js *JSONstorage) String() string {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	var output Users
-	output.Users = make(map[string]UserData)
+	output := make(map[string]UserData)
 	if err := js.kv.Iterate(nil, func(key, value []byte) bool {
 		var data UserData
 
@@ -286,7 +314,7 @@ func (js *JSONstorage) String() string {
 		// nolint[:ineffassign]
 		var user types.HexBytes
 		user = key
-		output.Users[user.String()] = data
+		output[user.String()] = data
 		return true
 	}); err != nil {
 		log.Warn(err)
