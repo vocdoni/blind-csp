@@ -65,9 +65,9 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, valid, qt.IsFalse)
 
 	// Test get elections
-	elections, err := stg.Elections(testStrToHex(t, testStorageUser3))
+	user, err := stg.User(testStrToHex(t, testStorageUser3))
 	qt.Assert(t, err, qt.IsNil)
-	qt.Assert(t, elections, qt.HasLen, 2)
+	qt.Assert(t, user.Elections, qt.HasLen, 2)
 
 	// Test verified
 	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))

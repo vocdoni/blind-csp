@@ -135,13 +135,13 @@ func (sh *SmsHandler) Info() *types.Message {
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
 func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
-	elections, err := sh.stg.Elections(userID)
+	user, err := sh.stg.User(userID)
 	if err != nil {
 		log.Warnf("cannot get indexer elections: %v", err)
 		return nil
 	}
 	indexerElections := []types.Election{}
-	for _, e := range elections {
+	for _, e := range user.Elections {
 		ie := types.Election{
 			RemainingAttempts: e.RemainingAttempts,
 			Consumed:          e.Consumed,
