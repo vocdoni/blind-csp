@@ -11,7 +11,7 @@ Its design makes very easy to write new authentication handlers such as the ones
 
 The CSP server cannot see the payload of what is being signed (it is blinded) and since the server cannot see what is signing a valid signature proof provided by the CSP might be reused or requested for a different validation process. This is not something is desired to happen because the voter can then vote on processes where is not allowed to.
 
-For making the CSP voter approval valid only for a specific process (identified by a 20 bytes word: processId), a deterministic key derivation 
+For making the CSP voter approval valid only for a specific process (identified by a 20 bytes word: electionId), a deterministic key derivation 
 is used. So the CSP is only required to publish a single root public key. The specific per-process keys will be computed
 independently by all parties (CSP will derive its election private key and the process organizers will derive the election public key). 
 
@@ -19,11 +19,11 @@ To this end we use the following simple approach (G is the EC generator):
 
 ```
 PubKeyRootCSP = PrivKeyRootCSP * G
-PrivKey2 = PrivkeyRootCSP + ProcessId
-PubKey2 = PubKeyRootCSP + ProcessId
+PrivKey2 = PrivkeyRootCSP + electionId
+PubKey2 = PubKeyRootCSP + electionId
 ```
 
-So if PubKey2 becomes the election CSP public key, there is no way the CSP can share signatures before the processId is known
+So if PubKey2 becomes the election CSP public key, there is no way the CSP can share signatures before the electionId is known
 and there is no way to reuse a CSP signature for a different election process.
 
 ![flow diagram](https://raw.githubusercontent.com/vocdoni/blind-csp/master/misc/blind_csp_flow.svg)
@@ -46,7 +46,7 @@ Curently only `auth` as authType is supported, but `oauth` or others might be ad
 
 The `signatureType` is a string array containing the list of supported signature types (used as the CSP proof).
 Currently the supported signature types are `blind` for ECDSA blind signature, `ecdsa` for plain ECDSA signature over an arbitrary payload, 
-and `sharedkey` for fetching a shared secret (signature of processID).
+and `sharedkey` for fetching a shared secret (signature of electionId).
 
 The `authSteps` object array describes the authentication steps and its parameters for a given authentication handler.
 So in the following example there are two steps (size of the object array), the first one requires a
@@ -154,11 +154,11 @@ curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "pay
 
 ### 3. Shared Key
 
-The shared key is a common key for all users belonging to the same processId.
+The shared key is a common key for all users belonging to the same electionId.
 It might be used as shared key for encrypting process data so only the users that are able to 
 authenticate can decrypt the data.
 
-The shared key is the ECDSA salted signature of a keccak256 hash of a given processId.
+The shared key is the ECDSA salted signature of a keccak256 hash of a given electionId.
 
 The sharedkey endpoint requires the same authentication steps described by the `info` method.
 However the handler might apply different restrictions such as allow the authentication succeed more
@@ -242,16 +242,16 @@ Using path /home/user/.blindcsp
 2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered GET public method for path /v1/auth/elections/ping
 2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/info
 2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered GET public method for path /v1/auth/elections/info
-2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/auth/{step}
-2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/auth/{step}
-2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/auth
-2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/auth
-2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/{signType}/sign
-2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/{signType}/sign
-2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/sharedkey/{step}
-2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/sharedkey/{step}
-2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{processId}/sharedkey
-2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{processId}/sharedkey
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{electionId}/{signType}/auth/{step}
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{electionId}/{signType}/auth/{step}
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{electionId}/{signType}/auth
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{electionId}/{signType}/auth
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{electionId}/{signType}/sign
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{electionId}/{signType}/sign
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{electionId}/sharedkey/{step}
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{electionId}/sharedkey/{step}
+2022-06-17T16:29:19+02:00	INFO	httprouter/httprouter.go:220	added public handler for namespace bearerStd with pattern /v1/auth/elections/{electionId}/sharedkey
+2022-06-17T16:29:19+02:00	INFO	bearerstdapi/bearerstdapi.go:160	registered POST public method for path /v1/auth/elections/{electionId}/sharedkey
 ```
 
 ```golang

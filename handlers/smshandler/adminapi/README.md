@@ -146,7 +146,7 @@ curl http://127.0.0.1:5001/smsapi/addAttempt/6c0b6e1020b6354c714fc65aa198eb95e66
 ```
 
 ### 5. Set consumed
-The consumed bool indicates if a user represented by its userID has already fetched a CSP proof for a given processID.
+The consumed bool indicates if a user represented by its userID has already fetched a CSP proof for a given electionId.
 
 - Request
 ```bash
