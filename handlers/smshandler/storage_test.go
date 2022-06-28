@@ -1,16 +1,36 @@
 package smshandler
 
 import (
+	"os"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/uuid"
 	"github.com/vocdoni/blind-csp/types"
+
+	"github.com/strikesecurity/strikememongo"
 )
 
 func TestStorageJSON(t *testing.T) {
 	js := &JSONstorage{}
 	testStorage(t, js)
+}
+
+func TestStorageMongoDB(t *testing.T) {
+	stg := &MongoStorage{}
+
+	mongoServer, err := strikememongo.Start("4.0.28")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mongoServer.Stop()
+
+	err = os.Setenv("CSP_MONGODB_URL", mongoServer.URI())
+	qt.Check(t, err, qt.IsNil)
+	err = os.Setenv("CSP_DATABASE", strikememongo.RandomDatabase())
+	qt.Check(t, err, qt.IsNil)
+
+	testStorage(t, stg)
 }
 
 func testStorage(t *testing.T, stg Storage) {
