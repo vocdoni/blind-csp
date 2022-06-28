@@ -35,7 +35,6 @@ func main() {
 	// nolint[:lll]
 	fmt.Printf("ENV vars: ADMINAPI_TLSDOMAIN ADMINAPI_LOGLEVEL ADMINAPI_AUTHTOKEN ADMINAPI_PORT CSP_MONGODB_URL CSP_DATABASE\n")
 	flag.Parse()
-	log.Init(logLevel, "stdout")
 
 	// Set the ENV vars
 	if tlsDomain == "" {
@@ -54,6 +53,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	log.Init(logLevel, "stdout")
 	// Create the HTTP router
 	router := httprouter.HTTProuter{}
 	router.TLSdomain = tlsDomain
