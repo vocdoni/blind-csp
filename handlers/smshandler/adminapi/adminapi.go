@@ -237,7 +237,7 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
 	}
-	if err := electionID.FromString(ctx.URLParam("election")); err != nil {
+	if err := electionID.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
 	user, err := storage.User(userID)
