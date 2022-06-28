@@ -81,7 +81,7 @@ func main() {
 	}
 
 	// check if config file exists
-	_, err = os.Stat(path.Join(dataDir, "blindca.yml"))
+	_, err = os.Stat(path.Join(dataDir, "csp.yml"))
 	if os.IsNotExist(err) {
 		fmt.Printf("creating new config file in %s\n", dataDir)
 		// creting config folder if not exists
