@@ -45,9 +45,9 @@ func main() {
 
 	// Setting up viper
 	viper := viper.New()
-	viper.SetConfigName("blindca")
+	viper.SetConfigName("csp")
 	viper.SetConfigType("yml")
-	viper.SetEnvPrefix("BLINDCA")
+	viper.SetEnvPrefix("CSP")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -181,7 +181,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create the blind CA API and assign the auth function
+	// Create the blind CSP API and assign the auth function
 	pub, priv := signer.HexString()
 	log.Infof("CSP root public key: %s", pub)
 	cs, err := csp.NewBlindCSP(
