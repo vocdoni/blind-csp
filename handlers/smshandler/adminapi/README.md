@@ -14,23 +14,59 @@ The following examples with `curl` include an implicit header flag such as:
 `curl -H "Authorization: Bearer 63d97da8-86e7-4313-92e7-2d8ae99e6c6e" <query>`
 
 
-### 1. dump the database
+### 1. Database dump
 Dump all users and elections (JSON).
 Note that this method can be quite heavy and reach HTTP body size limit if the database is too big.
 Only suitable for debug purposes.
 
-```json
+- Request
+```bash
 curl http://127.0.0.1:5001/smsapi/dump
-
-<JSON response here>
+```
+- Response OK
+```json
+{
+ "userID": "6d2347cf59313bdb4038f0c6643e9289d694c1c67d4d1d66f56968e374d48669",
+ "elections": [
+  {
+   "electionId": "1111111111111111111111111111111111111111111111111111111111111111",
+   "remainingAttempts": 5,
+   "consumed": false
+  },
+  {
+   "electionId": "2222222222222222222222222222222222222222222222222222222222222222",
+   "remainingAttempts": 5,
+   "consumed": false
+  },
+  {
+   "electionId": "3333333333333333333333333333333333333333333333333333333333333333",
+   "remainingAttempts": 5,
+   "consumed": false
+  }
+ ],
+ "extraData": "Vocdoni",
+ "phone": {
+  "country_code": 34,
+  "national_number": 651200042
+ }
+}
+```
+- Response Error
+```json
+{
+    "error": "auth token not valid"
+}
 ```
 
-### 2. list user
+### 2. List users
 List all users identifiers (userID).
 
+- Request
+```bash
+curl http://127.0.0.1:5001/smsapi/users 
+```
+- Response OK
 ```json
-curl http://127.0.0.1:5001/smsapi/users
-
 {
  "users": [
   "6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac",
@@ -39,13 +75,22 @@ curl http://127.0.0.1:5001/smsapi/users
  ]
 }
 ```
-
-### 3. get user data
-Retrieve the user data by its userID.
-
+- Response Error
 ```json
-curl http://127.0.0.1:5001/smsapi/user/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac
+{
+    "error": "auth token not valid"
+}
+```
 
+### 3. Get user data
+Retrieve the user data given a userID.
+
+- Request
+```bash
+curl http://127.0.0.1:5001/smsapi/user/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac
+```
+- Response OK
+```json
 {
  "userID": "6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac",
  "elections": [
@@ -72,30 +117,60 @@ curl http://127.0.0.1:5001/smsapi/user/6c0b6e1020b6354c714fc65aa198eb95e663f038e
  }
 }
 ```
-
-### 4. add SMS attempt
-Increase by 1 the number of remaning SMS authentication attempts for a user and an election.
-
+- Response Error
 ```json
-curl http://127.0.0.1:5001/smsapi/addAttempt/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/2222222222222222222222222222222222222222222222222222222222222222
-
-{"ok":"true"}
+{
+    "error": "user is unknown"
+}
 ```
 
-### 5. set consumed
-The consumed bool determines if the user has already fetch the CSP proof.
+### 4. Add SMS attempt
+Increase by 1 the number of remaning SMS authentication attempts for a given userID and a given electionID.
 
+- Request
+```bash
+# .../addAttempt/<userID>/<electionID>
+curl http://127.0.0.1:5001/smsapi/addAttempt/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/2222222222222222222222222222222222222222222222222222222222222222
+```
+- Response OK
 ```json
-curl http://127.0.0.1:5001/smsapi/setConsumed/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/2222222222222222222222222222222222222222222222222222222222222222/true
+{
+    "ok":"true"
+}
+```
+- Response Error 
+```json
+{
+    "error": "user does not belong to election"
+}
+```
 
-{"ok":"true"}
+### 5. Set consumed
+The consumed bool indicates if a user represented by its userID has already fetched a CSP proof for a given processID.
+
+- Request
+```bash
+curl http://127.0.0.1:5001/smsapi/setConsumed/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/2222222222222222222222222222222222222222222222222222222222222222/true
+```
+- Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error":
+}
 ```
 
 After the two previous operations, the user looks like this:
 
-```json
+```bash
 curl http://127.0.0.1:5001/smsapi/user/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac
-
+```
+```json
 {
  "userID": "6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac",
  "elections": [
@@ -123,21 +198,33 @@ curl http://127.0.0.1:5001/smsapi/user/6c0b6e1020b6354c714fc65aa198eb95e663f038e
 }
 ```
 
-### 6. clone user
-Make a copy of a user with a new userID. The list of elections is preserved but not its internal status (consumed or tokens).
+### 6. Clone user
+Make a copy of a user with a new userID. The list of elections is preserved but not its internal status (consumed or remainingAttempts).
 The first URL parameter is the source userID and the second the new userID.
 
-```json
+- Request
+```bash
 curl http://127.0.0.1:5001/smsapi/cloneUser/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/b3deea91021d8c3dd6b52b2b1ba5defbe4b0b2fe03bc4ad6944148effb3e1222
-
-{"ok":"true"}
+```
+- Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "user already exists"
+}
 ```
 
 The status of the user after the previous command is:
 
-```json 
+```bash
 curl http://127.0.0.1:5001/smsapi/user/b3deea91021d8c3dd6b52b2b1ba5defbe4b0b2fe03bc4ad6944148effb3e1222
-
+```
+```json
 {
  "userID": "b3deea91021d8c3dd6b52b2b1ba5defbe4b0b2fe03bc4ad6944148effb3e1222",
  "elections": [
@@ -165,20 +252,30 @@ curl http://127.0.0.1:5001/smsapi/user/b3deea91021d8c3dd6b52b2b1ba5defbe4b0b2fe0
 }
 ```
 
-### 7. add a new user
-Creates a new user with a `phone` and an arbitrary `extra` field for storing personal information.
+### 7. Add a new user
+Creates a new user with a `phone` and an `extra` field containing arbitrary data.
 
-```json
+- Request
+```bash
 curl http://127.0.0.1:5001/smsapi/newUser/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4 -d '{"phone":"+34700605040","extra":"Alice 02/04/1991"}' -X POST
-
-{"ok":"true"}
 ```
-
-Then we can query the new user.
-
+- Response OK
 ```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "user already exists"
+}
+```
+Then we can query the new user:
+```bash
 curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4`
-
+```
+```json
 {
  "userID": "ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4",
  "extraData": "Alice 02/04/1991",
@@ -189,24 +286,37 @@ curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1
 }
 ```
 
-### 8. add an election
-Adds a new election for a user.
+### 8. Add an election
+Adds a new election for a given user.
 
-```json
+- Request
+```bash
 curl http://127.0.0.1:5001/smsapi/addElection/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4/3333333333333333333333333333333333333333333333333333333333333333
-
-{"ok":"true"}
+```
+- Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "user is unknown"
+}
 ```
 
-The new user now has the previous election configured:
+Now the new user has the previous election configured:
 
-```json
+```bash
 curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4
+```
+```json
 {
  "userID": "ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4",
  "elections": [
   {
-   "electionId": "",
+   "electionId": "3333333333333333333333333333333333333333333333333333333333333333",
    "remainingAttempts": 5,
    "consumed": false
   }
