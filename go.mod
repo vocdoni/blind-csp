@@ -10,6 +10,7 @@ require (
 	github.com/nyaruka/phonenumbers v1.0.75
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.1
+	github.com/strikesecurity/strikememongo v0.2.4 // direct
 	github.com/tendermint/tendermint v0.34.15 // indirect
 	github.com/twilio/twilio-go v0.26.0
 	go.mongodb.org/mongo-driver v1.9.1
