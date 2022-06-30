@@ -160,6 +160,9 @@ func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
 // Auth is the handler method for managing the simple math authentication challenge.
 func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 	electionID types.HexBytes, signType string, step int) types.AuthResponse {
+	if signType != types.SignatureTypeBlind {
+		return types.AuthResponse{Response: []string{"incorrect signature type, only blind supported"}}
+	}
 	switch step {
 	case 0:
 		// If first step, build new challenge
@@ -172,7 +175,7 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 		}
 
 		// Generate challenge and authentication token
-		challenge := sh.mathRandom.Intn(9000) + 1000
+		challenge := sh.mathRandom.Intn(900000) + 100000
 		atoken := uuid.New()
 
 		// Get the phone number. This methods checks for electionID and user verification status.
@@ -191,11 +194,15 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 			return types.AuthResponse{Response: []string{"error sending SMS"}}
 		}
 		log.Infof("user %s challenged with %d", userID.String(), challenge)
+		phoneStr := strconv.FormatUint(phone.GetNationalNumber(), 10)
+		if len(phoneStr) < 3 {
+			return types.AuthResponse{Response: []string{"error parsing the phone number"}}
+		}
 		return types.AuthResponse{
 			Success:   true,
 			AuthToken: &atoken,
+			Response:  []string{phoneStr[len(phoneStr)-2:]},
 		}
-
 	case 1:
 		if c.AuthToken == nil || len(c.AuthData) != 1 {
 			return types.AuthResponse{Response: []string{"auth token not provided or missing auth data"}}
