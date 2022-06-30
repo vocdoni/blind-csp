@@ -126,7 +126,7 @@ func (ms *MongoStorage) Users() (*Users, error) {
 
 func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
 	phone, extra string) error {
-	phoneNum, err := phonenumbers.Parse(phone, "ES")
+	phoneNum, err := phonenumbers.Parse(phone, DefaultPhoneCountry)
 	if err != nil {
 		return err
 	}
@@ -185,8 +185,8 @@ func (ms *MongoStorage) updateUser(user *UserData) error {
 }
 
 func (ms *MongoStorage) UpdateUser(udata *UserData) error {
-	ms.keysLock.RLock()
-	defer ms.keysLock.RUnlock()
+	ms.keysLock.Lock()
+	defer ms.keysLock.Unlock()
 	return ms.updateUser(udata)
 }
 

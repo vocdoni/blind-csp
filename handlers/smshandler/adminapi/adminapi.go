@@ -120,7 +120,7 @@ func main() {
 	}
 
 	if err := api.RegisterMethod(
-		"/addAttempt/{userid}/{election}",
+		"/addAttempt/{userid}/{electionid}",
 		"GET",
 		bearerstdapi.MethodAccessTypePrivate,
 		addAttempt,
@@ -129,7 +129,7 @@ func main() {
 	}
 
 	if err := api.RegisterMethod(
-		"/setConsumed/{userid}/{election}/{consumed}",
+		"/setConsumed/{userid}/{electionid}/{consumed}",
 		"GET",
 		bearerstdapi.MethodAccessTypePrivate,
 		setConsumed,
@@ -260,7 +260,7 @@ func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCon
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
 	}
-	if err := election.FromString(ctx.URLParam("election")); err != nil {
+	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
 	if err := storage.IncreaseAttempt(userID, election); err != nil {
@@ -274,7 +274,7 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
 	}
-	if err := election.FromString(ctx.URLParam("election")); err != nil {
+	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
 	consumed := ctx.URLParam("consumed") == "true" || ctx.URLParam("consumed") == "1"
@@ -314,9 +314,6 @@ func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCont
 		phone = fmt.Sprintf("+%d%d", user.Phone.GetCountryCode(), user.Phone.GetNationalNumber())
 	}
 	if err := storage.AddUser(newUserID, elections, phone, user.ExtraData); err != nil {
-		return err
-	}
-	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)

@@ -16,8 +16,12 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-// DefaultMaxSMSattempts defines the default maximum number of SMS allowed attempts.
-const DefaultMaxSMSattempts = 5
+const (
+	// DefaultMaxSMSattempts defines the default maximum number of SMS allowed attempts.
+	DefaultMaxSMSattempts = 5
+	// DefaultPhoneCountry defines the default country code for phone numbers.
+	DefaultPhoneCountry = "ES"
+)
 
 // SmsHandler is a handler that requires a simple math operation to be resolved.
 type SmsHandler struct {

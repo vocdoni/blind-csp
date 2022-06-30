@@ -40,7 +40,7 @@ func (js *JSONstorage) Users() (*Users, error) {
 
 func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
 	phone, extra string) error {
-	phoneNum, err := phonenumbers.Parse(phone, "ES")
+	phoneNum, err := phonenumbers.Parse(phone, DefaultPhoneCountry)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (js *JSONstorage) MaxAttempts() int {
 func (js *JSONstorage) User(userID types.HexBytes) (*UserData, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.WriteTx()
+	tx := js.kv.ReadTx()
 	defer tx.Discard()
 	userData, err := tx.Get(userID)
 	if err != nil {
@@ -112,7 +112,7 @@ func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
 	electionID types.HexBytes) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.WriteTx()
+	tx := js.kv.ReadTx()
 	defer tx.Discard()
 	userData, err := tx.Get(userID)
 	if err != nil {
@@ -200,7 +200,7 @@ func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
 func (js *JSONstorage) Exists(userID types.HexBytes) bool {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.WriteTx()
+	tx := js.kv.ReadTx()
 	defer tx.Discard()
 	_, err := tx.Get(userID)
 	return err == nil
@@ -209,7 +209,7 @@ func (js *JSONstorage) Exists(userID types.HexBytes) bool {
 func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.WriteTx()
+	tx := js.kv.ReadTx()
 	defer tx.Discard()
 	userData, err := tx.Get(userID)
 	if err != nil {
