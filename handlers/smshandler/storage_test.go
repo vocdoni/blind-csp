@@ -126,17 +126,21 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, err, qt.IsNil)
 
 	// now user is verified, we should not be able to ask for more challenges
+	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNotNil)
 
-	// try to consume all attempts fro user2
+	// try to consume all attempts for user2
+	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
+	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
+	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNotNil)
