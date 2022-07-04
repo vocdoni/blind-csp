@@ -104,15 +104,15 @@ func testStorage(t *testing.T, stg Storage) {
 
 	// try wrong process
 	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess2), &token1, challenge1)
-	qt.Assert(t, err, qt.IsNotNil)
+	qt.Assert(t, err, qt.ErrorIs, ErrUserNotBelongsToElection)
 
 	// try wrong solution
 	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess1), &token1, 1234)
-	qt.Assert(t, err, qt.IsNotNil)
+	qt.Assert(t, err, qt.ErrorIs, ErrChallengeCodeFailure)
 
 	// try valid solution but should not be allowed (already tried before)
 	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess1), &token1, challenge1)
-	qt.Assert(t, err, qt.IsNotNil)
+	qt.Assert(t, err, qt.ErrorIs, ErrInvalidAuthToken)
 
 	// try another attempt
 	challenge1 = 1989
@@ -129,7 +129,7 @@ func testStorage(t *testing.T, stg Storage) {
 	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
-	qt.Assert(t, err, qt.IsNotNil)
+	qt.Assert(t, err, qt.ErrorIs, ErrUserAlreadyVerified)
 
 	// try to consume all attempts for user2
 	token1 = uuid.New()
@@ -143,7 +143,7 @@ func testStorage(t *testing.T, stg Storage) {
 	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
-	qt.Assert(t, err, qt.IsNotNil)
+	qt.Assert(t, err, qt.ErrorIs, ErrTooManyAttempts)
 
 	// Test verified
 	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
