@@ -3,12 +3,12 @@ package smshandler
 import (
 	"os"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/uuid"
-	"github.com/vocdoni/blind-csp/types"
-
 	"github.com/strikesecurity/strikememongo"
+	"github.com/vocdoni/blind-csp/types"
 )
 
 func TestStorageJSON(t *testing.T) {
@@ -18,7 +18,6 @@ func TestStorageJSON(t *testing.T) {
 
 func TestStorageMongoDB(t *testing.T) {
 	stg := &MongoStorage{}
-
 	mongoServer, err := strikememongo.Start("4.0.28")
 	if err != nil {
 		t.Fatal(err)
@@ -35,7 +34,7 @@ func TestStorageMongoDB(t *testing.T) {
 
 func testStorage(t *testing.T, stg Storage) {
 	dataDir := t.TempDir()
-	err := stg.Init(dataDir, 2)
+	err := stg.Init(dataDir, 2, time.Millisecond*50)
 	qt.Assert(t, err, qt.IsNil)
 	// Add users
 	for user, data := range testStorageUsers {
@@ -44,8 +43,13 @@ func testStorage(t *testing.T, stg Storage) {
 		err := stg.AddUser(uh, ph, data.phone, "")
 		qt.Assert(t, err, qt.IsNil)
 	}
-
 	t.Logf(stg.String())
+
+	users, err := stg.Users()
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 3)
+	t.Logf("Users: %s", users.Users)
+
 	// Check user 1 with process 1 (should be valid)
 	valid, err := stg.BelongsToElection(
 		testStrToHex(t, testStorageUser1),
@@ -117,6 +121,7 @@ func testStorage(t *testing.T, stg Storage) {
 	// try another attempt
 	challenge1 = 1989
 	token1 = uuid.New()
+	time.Sleep(time.Millisecond * 50) // cooldown time
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
@@ -127,25 +132,26 @@ func testStorage(t *testing.T, stg Storage) {
 
 	// now user is verified, we should not be able to ask for more challenges
 	token1 = uuid.New()
+	time.Sleep(time.Millisecond * 50) // cooldown time
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrUserAlreadyVerified)
 
 	// try to consume all attempts for user2
-	token1 = uuid.New()
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), challenge1, &token1)
+	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
+		testStrToHex(t, testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
-	token1 = uuid.New()
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), challenge1, &token1)
+
+	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
+		testStrToHex(t, testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
+
 	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrTooManyAttempts)
 
-	// Test verified
+	// test verified
 	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)

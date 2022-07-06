@@ -78,7 +78,7 @@ func main() {
 	log.Infof("using bearer authentication token %s", authToken)
 
 	storage = &smshandler.MongoStorage{}
-	if err := storage.Init("", 5); err != nil {
+	if err := storage.Init("", 5, time.Second*1); err != nil {
 		log.Fatal(err)
 	}
 
@@ -263,7 +263,7 @@ func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCon
 	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
-	if err := storage.IncreaseAttempt(userID, election); err != nil {
+	if err := storage.SetAttempts(userID, election, 1); err != nil {
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)

@@ -31,9 +31,10 @@ type MongoStorage struct {
 	tokenIndex     *mongo.Collection
 	keysLock       sync.RWMutex
 	maxSmsAttempts int
+	coolDownTime   time.Duration
 }
 
-func (ms *MongoStorage) Init(dataDir string, maxAttempts int) error {
+func (ms *MongoStorage) Init(dataDir string, maxAttempts int, coolDownTime time.Duration) error {
 	var err error
 	url := os.Getenv("CSP_MONGODB_URL")
 	if url == "" {
@@ -78,6 +79,7 @@ func (ms *MongoStorage) Init(dataDir string, maxAttempts int) error {
 	ms.users = client.Database(database).Collection("users")
 	ms.tokenIndex = client.Database(database).Collection("tokenindex")
 	ms.maxSmsAttempts = maxAttempts
+	ms.coolDownTime = coolDownTime
 
 	// If reset flag is enabled, drop database documents
 	// TODO: make the reset function part of the storage interface
@@ -202,7 +204,7 @@ func (ms *MongoStorage) BelongsToElection(userID types.HexBytes,
 	return ei >= 0, nil
 }
 
-func (ms *MongoStorage) IncreaseAttempt(userID, electionID types.HexBytes) error {
+func (ms *MongoStorage) SetAttempts(userID, electionID types.HexBytes, delta int) error {
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
 
@@ -215,7 +217,7 @@ func (ms *MongoStorage) IncreaseAttempt(userID, electionID types.HexBytes) error
 	if ei == -1 {
 		return ErrUserNotBelongsToElection
 	}
-	user.Elections[ei].RemainingAttempts++
+	user.Elections[ei].RemainingAttempts += delta
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -240,16 +242,25 @@ func (ms *MongoStorage) NewAttempt(userID, electionID types.HexBytes,
 	if ei == -1 {
 		return nil, ErrUserNotBelongsToElection
 	}
+	// Check if the CSP signature is already consumed for the user/election
 	if user.Elections[ei].Consumed {
 		return nil, ErrUserAlreadyVerified
 	}
+	// Check cool down time
+	if user.Elections[ei].LastAttempt != nil {
+		if time.Now().Before(user.Elections[ei].LastAttempt.Add(ms.coolDownTime)) {
+			return nil, ErrAttemptCoolDownTime
+		}
+	}
+	// Check remaining attempts
 	if user.Elections[ei].RemainingAttempts < 1 {
 		return nil, ErrTooManyAttempts
 	}
-	user.Elections[ei].RemainingAttempts--
+	// Save new data
 	user.Elections[ei].AuthToken = token
 	user.Elections[ei].Challenge = challenge
-
+	t := time.Now()
+	user.Elections[ei].LastAttempt = &t
 	if err := ms.updateUser(user); err != nil {
 		return nil, err
 	}

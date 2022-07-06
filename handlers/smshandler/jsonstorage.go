@@ -2,8 +2,10 @@ package smshandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nyaruka/phonenumbers"
@@ -13,7 +15,10 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-const authTokenIndexPrefix = "at_"
+const (
+	userPrefix           = "u_"
+	authTokenIndexPrefix = "a_"
+)
 
 // JSONstorage uses a local KV database (Pebble) for storing the smshandler user data.
 // JSON is used for data serialization.
@@ -21,21 +26,38 @@ type JSONstorage struct {
 	kv             db.Database
 	keysLock       sync.RWMutex
 	maxSmsAttempts int
+	coolDownTime   time.Duration
 }
 
-func (js *JSONstorage) Init(dataDir string, maxAttempts int) error {
+func (js *JSONstorage) Init(dataDir string, maxAttempts int, coolDownTime time.Duration) error {
 	var err error
 	js.kv, err = metadb.New(db.TypePebble, filepath.Clean(dataDir))
 	if err != nil {
 		return err
 	}
 	js.maxSmsAttempts = maxAttempts
+	js.coolDownTime = coolDownTime
 	return nil
 }
 
-// TODO
 func (js *JSONstorage) Users() (*Users, error) {
-	return nil, nil
+	var us Users
+	if err := js.kv.Iterate(nil, func(key, value []byte) bool {
+		us.Users = append(us.Users, key2userID(key))
+		return true
+	}); err != nil {
+		return nil, err
+	}
+	return &us, nil
+}
+
+func userIDkey(u types.HexBytes) []byte {
+	return append([]byte(userPrefix), u...)
+}
+
+func key2userID(key []byte) (u types.HexBytes) {
+	u.FromString(fmt.Sprintf("%x", key[len(userPrefix):]))
+	return u
 }
 
 func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
@@ -62,7 +84,7 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 	if err != nil {
 		return err
 	}
-	if err := tx.Set(userID, userData); err != nil {
+	if err := tx.Set(userIDkey(userID), userData); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -79,7 +101,7 @@ func (js *JSONstorage) User(userID types.HexBytes) (*UserData, error) {
 	defer js.keysLock.RUnlock()
 	tx := js.kv.ReadTx()
 	defer tx.Discard()
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +124,7 @@ func (js *JSONstorage) UpdateUser(udata *UserData) error {
 	if err != nil {
 		return err
 	}
-	if err := tx.Set(udata.UserID, userData); err != nil {
+	if err := tx.Set(userIDkey(udata.UserID), userData); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -114,7 +136,7 @@ func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
 	defer js.keysLock.RUnlock()
 	tx := js.kv.ReadTx()
 	defer tx.Discard()
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return false, err
 	}
@@ -126,12 +148,12 @@ func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
 	return ei >= 0, nil
 }
 
-func (js *JSONstorage) IncreaseAttempt(userID, electionID types.HexBytes) error {
+func (js *JSONstorage) SetAttempts(userID, electionID types.HexBytes, delta int) error {
 	js.keysLock.Lock()
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
 	defer tx.Discard()
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return err
 	}
@@ -143,12 +165,12 @@ func (js *JSONstorage) IncreaseAttempt(userID, electionID types.HexBytes) error 
 	if ei == -1 {
 		return ErrUserNotBelongsToElection
 	}
-	user.Elections[ei].RemainingAttempts++
+	user.Elections[ei].RemainingAttempts += delta
 	userData, err = json.Marshal(user)
 	if err != nil {
 		return err
 	}
-	if err := tx.Set(userID, userData); err != nil {
+	if err := tx.Set(userIDkey(userID), userData); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -160,7 +182,7 @@ func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
 	defer tx.Discard()
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -175,18 +197,24 @@ func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
 	if user.Elections[ei].Consumed {
 		return nil, ErrUserAlreadyVerified
 	}
+	if user.Elections[ei].LastAttempt != nil {
+		if time.Now().Before(user.Elections[ei].LastAttempt.Add(js.coolDownTime)) {
+			return nil, ErrAttemptCoolDownTime
+		}
+	}
 	if user.Elections[ei].RemainingAttempts < 1 {
 		return nil, ErrTooManyAttempts
 	}
-	user.Elections[ei].RemainingAttempts--
 	user.Elections[ei].AuthToken = token
 	user.Elections[ei].Challenge = challenge
+	t := time.Now()
+	user.Elections[ei].LastAttempt = &t
 	userData, err = json.Marshal(user)
 	if err != nil {
 		return nil, err
 	}
 	// Save the user data
-	if err := tx.Set(userID, userData); err != nil {
+	if err := tx.Set(userIDkey(userID), userData); err != nil {
 		return nil, err
 	}
 	// Save the token as index for finding the userID
@@ -202,7 +230,7 @@ func (js *JSONstorage) Exists(userID types.HexBytes) bool {
 	defer js.keysLock.RUnlock()
 	tx := js.kv.ReadTx()
 	defer tx.Discard()
-	_, err := tx.Get(userID)
+	_, err := tx.Get(userIDkey(userID))
 	return err == nil
 }
 
@@ -211,7 +239,7 @@ func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error)
 	defer js.keysLock.RUnlock()
 	tx := js.kv.ReadTx()
 	defer tx.Discard()
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return false, err
 	}
@@ -240,7 +268,7 @@ func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
 	}
 
 	// with the user ID fetch the user data
-	userData, err := tx.Get(userID)
+	userData, err := tx.Get(userIDkey(userID))
 	if err != nil {
 		return err
 	}
@@ -275,7 +303,7 @@ func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
 	if err != nil {
 		return err
 	}
-	if err := tx.Set(userID, userData); err != nil {
+	if err := tx.Set(userIDkey(userID), userData); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -294,7 +322,7 @@ func (js *JSONstorage) DelUser(userID types.HexBytes) error {
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
 	defer tx.Discard()
-	if err := tx.Delete(userID); err != nil {
+	if err := tx.Delete(userIDkey(userID)); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -312,9 +340,7 @@ func (js *JSONstorage) String() string {
 			log.Warn(err)
 		}
 		// nolint[:ineffassign]
-		var user types.HexBytes
-		user = key
-		output[user.String()] = data
+		output[key2userID(key).String()] = data
 		return true
 	}); err != nil {
 		log.Warn(err)

@@ -2,8 +2,11 @@ module github.com/vocdoni/blind-csp
 
 go 1.15
 
+replace github.com/strikesecurity/strikememongo v0.2.4 => github.com/altergui/strikememongo v0.2.4
+
 require (
 	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20220421060538-07077d895da5
+	github.com/enriquebris/goconcurrentqueue v0.6.3
 	github.com/ethereum/go-ethereum v1.10.13
 	github.com/frankban/quicktest v1.14.0
 	github.com/google/uuid v1.3.0

@@ -80,9 +80,9 @@ func (sms *MessageBirdSMS) SendChallenge(phone *phonenumbers.PhoneNumber, challe
 	return err
 }
 
-var ChallengeSolutionMock int32
+var challengeSolutionMock int32
 
-func SendChallengeMock(phone *phonenumbers.PhoneNumber, challenge int) error {
-	atomic.StoreInt32(&ChallengeSolutionMock, int32(challenge))
+func sendChallengeMock(phone *phonenumbers.PhoneNumber, challenge int) error {
+	atomic.StoreInt32(&challengeSolutionMock, int32(challenge))
 	return nil
 }

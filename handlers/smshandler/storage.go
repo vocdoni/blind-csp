@@ -3,6 +3,7 @@ package smshandler
 import (
 	"bytes"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nyaruka/phonenumbers"
@@ -22,6 +23,8 @@ var (
 	ErrInvalidAuthToken = fmt.Errorf("invalid authentication token")
 	// ErrChallengeCodeFailure is returned when the challenge code does not match.
 	ErrChallengeCodeFailure = fmt.Errorf("challenge code do not match")
+	// ErrAttemptCoolDownTime is returned if the cooldown time for a challenge attempt is not reached.
+	ErrAttemptCoolDownTime = fmt.Errorf("attempt cooldown time not rached")
 )
 
 // Users is the list of smshandler users.
@@ -41,6 +44,7 @@ type UserData struct {
 type UserElection struct {
 	ElectionID        types.HexBytes `json:"electionId" bson:"_id"`
 	RemainingAttempts int            `json:"remainingAttempts" bson:"remainingattempts"`
+	LastAttempt       *time.Time     `json:"lastAttempt,omitempty" bson:"lastattempt,omitempty"`
 	Consumed          bool           `json:"consumed" bson:"consumed"`
 	AuthToken         *uuid.UUID     `json:"authToken,omitempty" bson:"authtoken,omitempty"`
 	Challenge         int            `json:"challenge,omitempty" bson:"challenge,omitempty"`
@@ -80,7 +84,8 @@ func (ud *UserData) FindElection(electionID types.HexBytes) int {
 // Storage interface implements the storage layer for the smshandler
 type Storage interface {
 	// initializes the storage, maxAttempts is used to set the default maximum SMS attempts.
-	Init(dataDir string, maxAttempts int) (err error)
+	// CoolDownTime is the time period on which attempts are allowed.
+	Init(dataDir string, maxAttempts int, coolDownTime time.Duration) (err error)
 	// adds a new user to the storage
 	AddUser(userID types.HexBytes, processIDs []types.HexBytes, phone, extra string) (err error)
 	// returns the list of users
@@ -91,8 +96,8 @@ type Storage interface {
 	UpdateUser(udata *UserData) (err error)
 	// returns true if the user belongs to the electionID
 	BelongsToElection(userID, electionID types.HexBytes) (belongs bool, err error)
-	// increment by one the attempt counter
-	IncreaseAttempt(userID, electionID types.HexBytes) (err error)
+	// increment or decrement remaining challenge attempts by delta
+	SetAttempts(userID, electionID types.HexBytes, delta int) (err error)
 	// returns the default max attempts
 	MaxAttempts() (attempts int)
 	// returns the phone and decrease attempt counter

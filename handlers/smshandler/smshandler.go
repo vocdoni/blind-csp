@@ -19,18 +19,28 @@ import (
 const (
 	// DefaultMaxSMSattempts defines the default maximum number of SMS allowed attempts.
 	DefaultMaxSMSattempts = 5
+	// DefaultSMScoolDownSeconds defines the default cool down time window for sending challenges.
+	DefaultSMScoolDownSeconds = 2 * 60
 	// DefaultPhoneCountry defines the default country code for phone numbers.
 	DefaultPhoneCountry = "ES"
+	queueSMSmaxTries    = 10
+	// DefaultSMSthrottleTime is the default throttle time for the SMS provider API.
+	DefaultSMSthrottleTime = time.Millisecond * 500
 )
 
 // SmsHandler is a handler that requires a simple math operation to be resolved.
 type SmsHandler struct {
-	stg               Storage
-	mathRandom        *rand.Rand
-	SendChallengeFunc func(phone *phonenumbers.PhoneNumber, challenge int) error
+	stg           Storage
+	smsQueue      *smsQueue
+	mathRandom    *rand.Rand
+	SendChallenge SendChallengeFunc
+	SmsThrottle   time.Duration
 }
 
-// GetName returns the name of the handler
+// SendChallengeFunc is the function that sends the SMS challenge to a phone number.
+type SendChallengeFunc func(phone *phonenumbers.PhoneNumber, challenge int) error
+
+// Name returns the name for the handler.
 func (sh *SmsHandler) Name() string {
 	return "smsHandler"
 }
@@ -50,6 +60,14 @@ func (sh *SmsHandler) Init(opts ...string) error {
 			return err
 		}
 	}
+	// set default cool down time
+	attemptsCoolDown := DefaultSMScoolDownSeconds
+	if len(opts) > 2 {
+		attemptsCoolDown, err = strconv.Atoi(opts[2])
+		if err != nil {
+			return err
+		}
+	}
 	// if MongoDB env var is defined, use MongoDB as storage backend
 	if os.Getenv("CSP_MONGODB_URL") != "" {
 		sh.stg = &MongoStorage{}
@@ -58,16 +76,20 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	}
 	// set math random source
 	sh.mathRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
-	if err := sh.stg.Init(filepath.Join(opts[0], "storage"), maxAttempts); err != nil {
+	if err := sh.stg.Init(
+		filepath.Join(opts[0], "storage"),
+		maxAttempts,
+		time.Second*time.Duration(attemptsCoolDown),
+	); err != nil {
 		return err
 	}
 	// set challenge function (if not defined, use Twilio)
-	if sh.SendChallengeFunc == nil {
+	if sh.SendChallenge == nil {
 		switch os.Getenv("SMS_PROVIDER") {
 		case "messagebird":
-			sh.SendChallengeFunc = NewMessageBirdSMS().SendChallenge
+			sh.SendChallenge = NewMessageBirdSMS().SendChallenge
 		default:
-			sh.SendChallengeFunc = NewTwilioSMS().SendChallenge
+			sh.SendChallenge = NewTwilioSMS().SendChallenge
 		}
 	}
 
@@ -76,7 +98,32 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	if importFile != "" {
 		sh.importCSVfile(importFile)
 	}
+
+	// create SMS queue
+	sh.SmsThrottle = DefaultSMSthrottleTime
+	sh.smsQueue = newSmsQueue(
+		time.Second*time.Duration(attemptsCoolDown),
+		sh.SendChallenge,
+	)
+	go sh.smsQueue.run()
+	go sh.smsQueueController()
 	return nil
+}
+
+// We add a wait in order to not stress the SMS provider API
+func (sh *SmsHandler) smsQueueController() {
+	for {
+		select {
+		case r := <-sh.smsQueue.response:
+			if r.success {
+				sh.stg.SetAttempts(r.userID, r.electionID, -1)
+				log.Infof("challenge successfully sent to %s", r.userID)
+			} else {
+				log.Infof("challenge sending failed for %s", r.userID)
+			}
+		}
+		time.Sleep(sh.SmsThrottle)
+	}
 }
 
 // CSV file must follow the format:
@@ -188,16 +235,15 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 			log.Warn(err)
 			return types.AuthResponse{Response: []string{err.Error()}}
 		}
-
-		// Send the challenge
-		if err := sh.SendChallengeFunc(phone, challenge); err != nil {
-			log.Warn(err)
-			if err := sh.stg.IncreaseAttempt(userID, electionID); err != nil {
-				log.Warn(err)
-			}
-			return types.AuthResponse{Response: []string{"error sending SMS"}}
+		if phone == nil {
+			log.Warnf("phone is nil for user %s", userID)
+			return types.AuthResponse{Response: []string{"no phone for this user data"}}
 		}
+		// Enqueue to send the SMS challenge
+		sh.smsQueue.add(userID, electionID, phone, challenge)
 		log.Infof("user %s challenged with %d", userID.String(), challenge)
+
+		// Build success reply
 		phoneStr := strconv.FormatUint(phone.GetNationalNumber(), 10)
 		if len(phoneStr) < 3 {
 			return types.AuthResponse{Response: []string{"error parsing the phone number"}}
