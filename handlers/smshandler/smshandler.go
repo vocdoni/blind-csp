@@ -19,8 +19,8 @@ import (
 const (
 	// DefaultMaxSMSattempts defines the default maximum number of SMS allowed attempts.
 	DefaultMaxSMSattempts = 5
-	// DefaultSMScoolDownSeconds defines the default cool down time window for sending challenges.
-	DefaultSMScoolDownSeconds = 2 * 60
+	// DefaultSMScoolDownTime defines the default cool down time window for sending challenges.
+	DefaultSMScoolDownTime = 2 * time.Minute
 	// DefaultPhoneCountry defines the default country code for phone numbers.
 	DefaultPhoneCountry = "ES"
 	queueSMSmaxTries    = 10
@@ -61,12 +61,13 @@ func (sh *SmsHandler) Init(opts ...string) error {
 		}
 	}
 	// set default cool down time
-	attemptsCoolDown := DefaultSMScoolDownSeconds
+	smsCoolDownTime := DefaultSMScoolDownTime
 	if len(opts) > 2 {
-		attemptsCoolDown, err = strconv.Atoi(opts[2])
+		s, err := strconv.Atoi(opts[2])
 		if err != nil {
 			return err
 		}
+		smsCoolDownTime = time.Second * time.Duration(s)
 	}
 	// if MongoDB env var is defined, use MongoDB as storage backend
 	if os.Getenv("CSP_MONGODB_URL") != "" {
@@ -79,7 +80,7 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	if err := sh.stg.Init(
 		filepath.Join(opts[0], "storage"),
 		maxAttempts,
-		time.Second*time.Duration(attemptsCoolDown),
+		smsCoolDownTime,
 	); err != nil {
 		return err
 	}
@@ -102,7 +103,7 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	// create SMS queue
 	sh.SmsThrottle = DefaultSMSthrottleTime
 	sh.smsQueue = newSmsQueue(
-		time.Second*time.Duration(attemptsCoolDown),
+		smsCoolDownTime,
 		sh.SendChallenge,
 	)
 	go sh.smsQueue.run()
