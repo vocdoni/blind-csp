@@ -33,7 +33,7 @@ func TestStorageMongoDB(t *testing.T) {
 
 	out, err := cli.ImagePull(ctx, imageName, dtypes.ImagePullOptions{})
 	qt.Check(t, err, qt.IsNil)
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 	_, _ = io.Copy(os.Stdout, out) // drain out until closed, this waits until ImagePull is finished
 
 	resp, err := cli.ContainerCreate(ctx, &dcontainer.Config{
@@ -43,10 +43,12 @@ func TestStorageMongoDB(t *testing.T) {
 
 	// best-effort to cleanup the container in most situations, including panic()
 	// but note this is not run in case of SIGKILL or CTRL-C and a running mongo docker is left behind
-	defer cli.ContainerRemove(ctx, resp.ID, dtypes.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		Force:         true,
-	})
+	defer func() {
+		_ = cli.ContainerRemove(ctx, resp.ID, dtypes.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		})
+	}()
 
 	err = cli.ContainerStart(ctx, resp.ID, dtypes.ContainerStartOptions{})
 	qt.Check(t, err, qt.IsNil)
