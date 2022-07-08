@@ -4,6 +4,9 @@ go 1.15
 
 require (
 	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20220421060538-07077d895da5
+	github.com/containerd/containerd v1.6.6 // indirect
+	github.com/docker/distribution v2.8.1+incompatible // indirect
+	github.com/docker/docker v20.10.7+incompatible
 	github.com/ethereum/go-ethereum v1.10.13
 	github.com/frankban/quicktest v1.14.0
 	github.com/google/uuid v1.3.0
