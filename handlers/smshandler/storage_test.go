@@ -1,10 +1,17 @@
 package smshandler
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
 
+	dtypes "github.com/docker/docker/api/types"
+	dcontainer "github.com/docker/docker/api/types/container"
+	dclient "github.com/docker/docker/client"
 	qt "github.com/frankban/quicktest"
 	"github.com/google/uuid"
 	"github.com/strikesecurity/strikememongo"
@@ -17,19 +24,42 @@ func TestStorageJSON(t *testing.T) {
 }
 
 func TestStorageMongoDB(t *testing.T) {
-	stg := &MongoStorage{}
-	mongoServer, err := strikememongo.Start("4.0.28")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mongoServer.Stop()
+	imageName := "mongo:5.0.9"
+	containerName := fmt.Sprintf("gotest_mongo_%08d", rand.Intn(100000000))
 
-	err = os.Setenv("CSP_MONGODB_URL", mongoServer.URI())
+	ctx := context.Background()
+	cli, err := dclient.NewClientWithOpts(dclient.FromEnv, dclient.WithAPIVersionNegotiation())
+	qt.Check(t, err, qt.IsNil)
+
+	out, err := cli.ImagePull(ctx, imageName, dtypes.ImagePullOptions{})
+	qt.Check(t, err, qt.IsNil)
+	defer out.Close()
+	_, _ = io.Copy(os.Stdout, out) // drain out until closed, this waits until ImagePull is finished
+
+	resp, err := cli.ContainerCreate(ctx, &dcontainer.Config{
+		Image: imageName,
+	}, nil, nil, nil, containerName)
+	qt.Check(t, err, qt.IsNil)
+
+	// best-effort to cleanup the container in most situations, including panic()
+	// but note this is not run in case of SIGKILL or CTRL-C and a running mongo docker is left behind
+	defer cli.ContainerRemove(ctx, resp.ID, dtypes.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	})
+
+	err = cli.ContainerStart(ctx, resp.ID, dtypes.ContainerStartOptions{})
+	qt.Check(t, err, qt.IsNil)
+
+	ct, err := cli.ContainerInspect(ctx, resp.ID)
+	qt.Check(t, err, qt.IsNil)
+
+	err = os.Setenv("CSP_MONGODB_URL", fmt.Sprintf("mongodb://%s", ct.NetworkSettings.IPAddress))
 	qt.Check(t, err, qt.IsNil)
 	err = os.Setenv("CSP_DATABASE", strikememongo.RandomDatabase())
 	qt.Check(t, err, qt.IsNil)
 
-	testStorage(t, stg)
+	testStorage(t, &MongoStorage{})
 }
 
 func testStorage(t *testing.T, stg Storage) {
