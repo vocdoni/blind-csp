@@ -39,8 +39,9 @@ func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
 	return &sq
 }
 
-func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) {
-	sq.queue.Enqueue(
+func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
+	log.Debugf("enqueued new sms with challenge for phone %d", phone.NationalNumber)
+	return sq.queue.Enqueue(
 		challengeData{
 			userID:     userID,
 			electionID: electionID,
@@ -50,7 +51,6 @@ func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.P
 			tries:      0,
 		},
 	)
-	log.Debugf("enqueued new sms with challenge for phone %d", phone.NationalNumber)
 }
 
 func (sq *smsQueue) run() {
@@ -60,8 +60,7 @@ func (sq *smsQueue) run() {
 			log.Warn(err)
 			continue
 		}
-		var challenge challengeData
-		challenge = c.(challengeData)
+		challenge := c.(challengeData)
 		if err := sq.sendChallenge(challenge.phone, challenge.challenge); err != nil {
 			log.Warnf("failed to send sms for %d: %v", *challenge.phone.NationalNumber, err)
 

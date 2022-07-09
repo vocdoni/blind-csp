@@ -114,14 +114,15 @@ func (sh *SmsHandler) Init(opts ...string) error {
 // We add a wait in order to not stress the SMS provider API
 func (sh *SmsHandler) smsQueueController() {
 	for {
-		select {
-		case r := <-sh.smsQueue.response:
-			if r.success {
-				sh.stg.SetAttempts(r.userID, r.electionID, -1)
-				log.Infof("challenge successfully sent to %s", r.userID)
+		r := <-sh.smsQueue.response
+		if r.success {
+			if err := sh.stg.SetAttempts(r.userID, r.electionID, -1); err != nil {
+				log.Warnf("challenge cannot be sent: %v", err)
 			} else {
-				log.Infof("challenge sending failed for %s", r.userID)
+				log.Infof("challenge successfully sent to %s", r.userID)
 			}
+		} else {
+			log.Infof("challenge sending failed for %s", r.userID)
 		}
 		time.Sleep(sh.SmsThrottle)
 	}
@@ -241,7 +242,10 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 			return types.AuthResponse{Response: []string{"no phone for this user data"}}
 		}
 		// Enqueue to send the SMS challenge
-		sh.smsQueue.add(userID, electionID, phone, challenge)
+		if err := sh.smsQueue.add(userID, electionID, phone, challenge); err != nil {
+			log.Errorf("cannot enqueue challenge: %v", err)
+			return types.AuthResponse{Response: []string{"problem with SMS challenge system"}}
+		}
 		log.Infof("user %s challenged with %d", userID.String(), challenge)
 
 		// Build success reply

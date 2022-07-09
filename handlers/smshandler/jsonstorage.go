@@ -56,7 +56,7 @@ func userIDkey(u types.HexBytes) []byte {
 }
 
 func key2userID(key []byte) (u types.HexBytes) {
-	u.FromString(fmt.Sprintf("%x", key[len(userPrefix):]))
+	_ = u.FromString(fmt.Sprintf("%x", key[len(userPrefix):]))
 	return u
 }
 
