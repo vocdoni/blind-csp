@@ -84,7 +84,7 @@ func (sq *smsQueue) run() {
 			log.Infof("re-enqueued sms for %d, attempt #%d", *challenge.phone.NationalNumber, challenge.tries)
 			continue
 		}
-		log.Debug("sms with challenge for %d successfully sent, sending channel signal", *challenge.phone.NationalNumber)
+		log.Debugf("sms with challenge for %d successfully sent, sending channel signal", *challenge.phone.NationalNumber)
 		// Send a signal (channel) to let the caller know we succeed
 		sq.response <- smsQueueResponse{
 			userID:     challenge.userID,

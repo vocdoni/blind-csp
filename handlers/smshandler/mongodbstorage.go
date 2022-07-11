@@ -142,9 +142,12 @@ func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexByt
 	}
 	user := UserData{
 		UserID:    userID,
-		Elections: []UserElection(HexBytesToElection(processIDs, ms.maxSmsAttempts)),
 		ExtraData: extra,
 		Phone:     phoneNum,
+	}
+	user.Elections = make(map[string]UserElection, len(processIDs))
+	for _, e := range HexBytesToElection(processIDs, ms.maxSmsAttempts) {
+		user.Elections[e.ElectionID.String()] = e
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -200,8 +203,8 @@ func (ms *MongoStorage) BelongsToElection(userID types.HexBytes,
 	if err != nil {
 		return false, err
 	}
-	ei := user.FindElection(electionID)
-	return ei >= 0, nil
+	_, ok := user.Elections[electionID.String()]
+	return ok, nil
 }
 
 func (ms *MongoStorage) SetAttempts(userID, electionID types.HexBytes, delta int) error {
@@ -212,13 +215,12 @@ func (ms *MongoStorage) SetAttempts(userID, electionID types.HexBytes, delta int
 	if err != nil {
 		return err
 	}
-
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return ErrUserNotBelongsToElection
 	}
-	user.Elections[ei].RemainingAttempts += delta
-
+	election.RemainingAttempts += delta
+	user.Elections[electionID.String()] = election
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = ms.users.ReplaceOne(ctx, bson.M{"_id": userID}, user)
@@ -238,29 +240,31 @@ func (ms *MongoStorage) NewAttempt(userID, electionID types.HexBytes,
 		return nil, err
 	}
 
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return nil, ErrUserNotBelongsToElection
 	}
+
 	// Check if the CSP signature is already consumed for the user/election
-	if user.Elections[ei].Consumed {
+	if election.Consumed {
 		return nil, ErrUserAlreadyVerified
 	}
 	// Check cool down time
-	if user.Elections[ei].LastAttempt != nil {
-		if time.Now().Before(user.Elections[ei].LastAttempt.Add(ms.coolDownTime)) {
+	if election.LastAttempt != nil {
+		if time.Now().Before(election.LastAttempt.Add(ms.coolDownTime)) {
 			return nil, ErrAttemptCoolDownTime
 		}
 	}
 	// Check remaining attempts
-	if user.Elections[ei].RemainingAttempts < 1 {
+	if election.RemainingAttempts < 1 {
 		return nil, ErrTooManyAttempts
 	}
 	// Save new data
-	user.Elections[ei].AuthToken = token
-	user.Elections[ei].Challenge = challenge
+	election.AuthToken = token
+	election.Challenge = challenge
 	t := time.Now()
-	user.Elections[ei].LastAttempt = &t
+	election.LastAttempt = &t
+	user.Elections[electionID.String()] = election
 	if err := ms.updateUser(user); err != nil {
 		return nil, err
 	}
@@ -291,11 +295,11 @@ func (ms *MongoStorage) Verified(userID, electionID types.HexBytes) (bool, error
 	if err != nil {
 		return false, err
 	}
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return false, ErrUserNotBelongsToElection
 	}
-	return user.Elections[ei].Consumed, nil
+	return election.Consumed, nil
 }
 
 func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
@@ -320,19 +324,22 @@ func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
 	}
 
 	// find the election and check the solution
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return ErrUserNotBelongsToElection
 	}
-	if user.Elections[ei].Consumed {
+	if election.Consumed {
 		return ErrUserAlreadyVerified
 	}
-	if user.Elections[ei].AuthToken.String() != token.String() {
+	if election.AuthToken == nil {
+		return fmt.Errorf("no auth token available for this election")
+	}
+	if election.AuthToken.String() != token.String() {
 		return ErrInvalidAuthToken
 	}
 
 	// clean token data (we only allow 1 chance)
-	user.Elections[ei].AuthToken = nil
+	election.AuthToken = nil
 	ctx, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
 	if _, err := ms.tokenIndex.DeleteOne(ctx, bson.M{"_id": token}); err != nil {
@@ -340,15 +347,16 @@ func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
 	}
 
 	// set consumed to true or false depending on the challenge solution
-	user.Elections[ei].Consumed = user.Elections[ei].Challenge == solution
+	election.Consumed = election.Challenge == solution
 
 	// save the user data
+	user.Elections[electionID.String()] = election
 	if err := ms.updateUser(user); err != nil {
 		return err
 	}
 
 	// return error if the solution does not match the challenge
-	if user.Elections[ei].Challenge != solution {
+	if election.Challenge != solution {
 		return ErrChallengeCodeFailure
 	}
 

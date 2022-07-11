@@ -248,7 +248,7 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 		ElectionID:        electionID,
 		RemainingAttempts: storage.MaxAttempts(),
 	}
-	user.Elections = append(user.Elections, election)
+	user.Elections[electionID.String()] = election
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
@@ -270,11 +270,11 @@ func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCon
 }
 
 func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
-	var userID, election types.HexBytes
+	var userID, electionID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
 	}
-	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
+	if err := electionID.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
 	consumed := ctx.URLParam("consumed") == "true" || ctx.URLParam("consumed") == "1"
@@ -282,11 +282,12 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err != nil {
 		return err
 	}
-	i := user.FindElection(election)
-	if i == -1 {
-		return fmt.Errorf("election not found for user %s", user.UserID)
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
+		return fmt.Errorf("user does not belong to election")
 	}
-	user.Elections[i].Consumed = consumed
+	election.Consumed = consumed
+	user.Elections[electionID.String()] = election // Redundant?
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
