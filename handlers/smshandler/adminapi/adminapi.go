@@ -78,7 +78,7 @@ func main() {
 	log.Infof("using bearer authentication token %s", authToken)
 
 	storage = &smshandler.MongoStorage{}
-	if err := storage.Init("", 5, time.Second*1); err != nil {
+	if err := storage.Init("", 5, time.Second); err != nil {
 		log.Fatal(err)
 	}
 

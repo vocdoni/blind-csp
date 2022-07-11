@@ -15,7 +15,7 @@ type challengeData struct {
 	phone      *phonenumbers.PhoneNumber
 	challenge  int
 	startTime  time.Time
-	tries      int
+	attempts   int
 }
 
 type smsQueue struct {
@@ -32,11 +32,11 @@ type smsQueueResponse struct {
 }
 
 func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
-	var sq smsQueue
-	sq.queue = goconcurrentqueue.NewFIFO()
-	sq.response = make(chan smsQueueResponse, 10)
-	sq.sendChallenge = schFnc
-	return &sq
+	return &smsQueue{
+		queue:         goconcurrentqueue.NewFIFO(),
+		response:      make(chan smsQueueResponse, 10),
+		sendChallenge: schFnc,
+	}
 }
 
 func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
@@ -48,7 +48,7 @@ func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.P
 			phone:      phone,
 			challenge:  challenge,
 			startTime:  time.Now(),
-			tries:      0,
+			attempts:   0,
 		},
 	)
 }
@@ -65,8 +65,8 @@ func (sq *smsQueue) run() {
 			log.Warnf("failed to send sms for %d: %v", *challenge.phone.NationalNumber, err)
 
 			// check if we have to enqueue it again or not
-			if challenge.tries >= queueSMSmaxTries || time.Now().After(challenge.startTime.Add(sq.ttl)) {
-				log.Warnf("TTL or max tries reached for %d, removing from sms queue", *challenge.phone.NationalNumber)
+			if challenge.attempts >= queueSMSmaxAttempts || time.Now().After(challenge.startTime.Add(sq.ttl)) {
+				log.Warnf("TTL or max attempts reached for %d, removing from sms queue", *challenge.phone.NationalNumber)
 				// Send a signal (channel) to let the caller know we are removing this element
 				sq.response <- smsQueueResponse{
 					userID:     challenge.userID,
@@ -76,12 +76,12 @@ func (sq *smsQueue) run() {
 				continue
 			}
 			// enqueue it again
-			challenge.tries++
+			challenge.attempts++
 			if err := sq.queue.Enqueue(challenge); err != nil {
 				log.Errorf("cannot enqueue sms for %d: %v", *challenge.phone.NationalNumber, err)
 				continue
 			}
-			log.Infof("re-enqueued sms for %d, attempt #%d", *challenge.phone.NationalNumber, challenge.tries)
+			log.Infof("re-enqueued sms for %d, attempt #%d", *challenge.phone.NationalNumber, challenge.attempts)
 			continue
 		}
 		log.Debugf("sms with challenge for %d successfully sent, sending channel signal", *challenge.phone.NationalNumber)
