@@ -76,10 +76,14 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 		maxAttempts = js.maxSmsAttempts
 	}
 	user := UserData{
-		Elections: []UserElection(HexBytesToElection(processIDs, js.maxSmsAttempts)),
 		ExtraData: extra,
 		Phone:     phoneNum,
 	}
+	user.Elections = make(map[string]UserElection, len(processIDs))
+	for _, e := range HexBytesToElection(processIDs, js.maxSmsAttempts) {
+		user.Elections[e.ElectionID.String()] = e
+	}
+
 	userData, err := json.Marshal(user)
 	if err != nil {
 		return err
@@ -144,8 +148,8 @@ func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
 	if err := json.Unmarshal(userData, &user); err != nil {
 		return false, err
 	}
-	ei := user.FindElection(electionID)
-	return ei >= 0, nil
+	_, ok := user.Elections[electionID.String()]
+	return ok, nil
 }
 
 func (js *JSONstorage) SetAttempts(userID, electionID types.HexBytes, delta int) error {
@@ -161,11 +165,12 @@ func (js *JSONstorage) SetAttempts(userID, electionID types.HexBytes, delta int)
 	if err := json.Unmarshal(userData, &user); err != nil {
 		return err
 	}
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return ErrUserNotBelongsToElection
 	}
-	user.Elections[ei].RemainingAttempts += delta
+	election.RemainingAttempts += delta
+	user.Elections[electionID.String()] = election
 	userData, err = json.Marshal(user)
 	if err != nil {
 		return err
@@ -190,25 +195,26 @@ func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
 	if err := json.Unmarshal(userData, &user); err != nil {
 		return nil, err
 	}
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return nil, ErrUserNotBelongsToElection
 	}
-	if user.Elections[ei].Consumed {
+	if election.Consumed {
 		return nil, ErrUserAlreadyVerified
 	}
-	if user.Elections[ei].LastAttempt != nil {
-		if time.Now().Before(user.Elections[ei].LastAttempt.Add(js.coolDownTime)) {
+	if election.LastAttempt != nil {
+		if time.Now().Before(election.LastAttempt.Add(js.coolDownTime)) {
 			return nil, ErrAttemptCoolDownTime
 		}
 	}
-	if user.Elections[ei].RemainingAttempts < 1 {
+	if election.RemainingAttempts < 1 {
 		return nil, ErrTooManyAttempts
 	}
-	user.Elections[ei].AuthToken = token
-	user.Elections[ei].Challenge = challenge
+	election.AuthToken = token
+	election.Challenge = challenge
 	t := time.Now()
-	user.Elections[ei].LastAttempt = &t
+	election.LastAttempt = &t
+	user.Elections[electionID.String()] = election
 	userData, err = json.Marshal(user)
 	if err != nil {
 		return nil, err
@@ -247,11 +253,11 @@ func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error)
 	if err := json.Unmarshal(userData, &user); err != nil {
 		return false, err
 	}
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return false, ErrUserNotBelongsToElection
 	}
-	return user.Elections[ei].Consumed, nil
+	return election.Consumed, nil
 }
 
 func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
@@ -278,27 +284,31 @@ func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
 	}
 
 	// find the election and check the solution
-	ei := user.FindElection(electionID)
-	if ei == -1 {
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
 		return ErrUserNotBelongsToElection
 	}
-	if user.Elections[ei].Consumed {
+	if election.Consumed {
 		return ErrUserAlreadyVerified
 	}
-	if user.Elections[ei].AuthToken.String() != token.String() {
+	if election.AuthToken == nil {
+		return fmt.Errorf("no auth token available for this election")
+	}
+	if election.AuthToken.String() != token.String() {
 		return ErrInvalidAuthToken
 	}
 
 	// clean token data (we only allow 1 chance)
-	user.Elections[ei].AuthToken = nil
+	election.AuthToken = nil
 	if err := tx.Delete([]byte(authTokenIndexPrefix + token.String())); err != nil {
 		return err
 	}
 
 	// set consumed to true or false depending on the challenge solution
-	user.Elections[ei].Consumed = user.Elections[ei].Challenge == solution
+	election.Consumed = election.Challenge == solution
 
 	// save the user data
+	user.Elections[electionID.String()] = election
 	userData, err = json.Marshal(user)
 	if err != nil {
 		return err
@@ -311,7 +321,7 @@ func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
 	}
 
 	// return error if the solution does not match the challenge
-	if user.Elections[ei].Challenge != solution {
+	if election.Challenge != solution {
 		return ErrChallengeCodeFailure
 	}
 	return nil

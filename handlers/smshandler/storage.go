@@ -1,7 +1,6 @@
 package smshandler
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -35,7 +34,7 @@ type Users struct {
 // UserData represents a user of the SMS handler.
 type UserData struct {
 	UserID    types.HexBytes            `json:"userID,omitempty" bson:"_id"`
-	Elections []UserElection            `json:"elections,omitempty" bson:"elections,omitempty"`
+	Elections map[string]UserElection   `json:"elections,omitempty" bson:"elections,omitempty"`
 	ExtraData string                    `json:"extraData,omitempty" bson:"extradata,omitempty"`
 	Phone     *phonenumbers.PhoneNumber `json:"phone,omitempty" bson:"phone,omitempty"`
 }
@@ -68,17 +67,6 @@ func HexBytesToElection(electionIDs []types.HexBytes, attempts int) []UserElecti
 		elections = append(elections, ue)
 	}
 	return elections
-}
-
-// FindElection returns the election index.
-// -1 is returned if the election ID is not found.
-func (ud *UserData) FindElection(electionID types.HexBytes) int {
-	for i, e := range ud.Elections {
-		if bytes.Equal(electionID, e.ElectionID) {
-			return i
-		}
-	}
-	return -1
 }
 
 // Storage interface implements the storage layer for the smshandler
