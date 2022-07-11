@@ -29,8 +29,8 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Run tests
-        run: go test ./...
+      - name: go test
+        run: go test -timeout=10m -race ./...
 
   docker-release:
     runs-on: ubuntu-latest
