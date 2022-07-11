@@ -36,11 +36,12 @@ func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
 	sq.queue = goconcurrentqueue.NewFIFO()
 	sq.response = make(chan smsQueueResponse, 10)
 	sq.sendChallenge = schFnc
+	sq.ttl = ttl
 	return &sq
 }
 
 func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
-	log.Debugf("enqueued new sms with challenge for phone %d", phone.NationalNumber)
+	log.Debugf("enqueued new sms with challenge for phone %d", *phone.NationalNumber)
 	return sq.queue.Enqueue(
 		challengeData{
 			userID:     userID,
