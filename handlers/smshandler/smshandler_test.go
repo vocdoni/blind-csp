@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,14 +71,14 @@ func TestSmsHandler(t *testing.T) {
 
 	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", challengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
 	qt.Check(t, resp.Success, qt.IsTrue, qt.Commentf("%s", resp.Response))
 
 	// Try again, it should fail
 	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", challengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
 	qt.Check(t, resp.Success, qt.IsFalse)
 }
