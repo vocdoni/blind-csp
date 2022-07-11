@@ -100,6 +100,8 @@ type Storage interface {
 	VerifyChallenge(electionID types.HexBytes, token *uuid.UUID, solution int) (err error)
 	// removes an user from the storage
 	DelUser(userID types.HexBytes) (err error)
+	// search for a term within the extraData user field and returns the list of matching userIDs
+	Search(term string) (users *Users, err error)
 	// returns the string representation of the storage
 	String() string
 }
