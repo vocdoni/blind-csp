@@ -36,6 +36,7 @@ func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
 		queue:         goconcurrentqueue.NewFIFO(),
 		response:      make(chan smsQueueResponse, 10),
 		sendChallenge: schFnc,
+		ttl:           ttl,
 	}
 }
 
