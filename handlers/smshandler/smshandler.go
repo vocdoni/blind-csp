@@ -23,7 +23,7 @@ const (
 	DefaultSMScoolDownTime = 2 * time.Minute
 	// DefaultPhoneCountry defines the default country code for phone numbers.
 	DefaultPhoneCountry = "ES"
-	queueSMSmaxTries    = 10
+	queueSMSmaxAttempts = 10
 	// DefaultSMSthrottleTime is the default throttle time for the SMS provider API.
 	DefaultSMSthrottleTime = time.Millisecond * 500
 )

@@ -11,7 +11,7 @@ import (
 
 var (
 	// ErrTooManyAttempts is returned when no more SMS attempts available for a user.
-	ErrTooManyAttempts = fmt.Errorf("too many SMS tries")
+	ErrTooManyAttempts = fmt.Errorf("too many SMS attempts")
 	// ErrUserUnknown is returned if the userID is not found in the database.
 	ErrUserUnknown = fmt.Errorf("user is unknown")
 	// ErrUserAlreadyVerified is returned if the user is already verified when trying to verify it.
@@ -71,35 +71,35 @@ func HexBytesToElection(electionIDs []types.HexBytes, attempts int) []UserElecti
 
 // Storage interface implements the storage layer for the smshandler
 type Storage interface {
-	// initializes the storage, maxAttempts is used to set the default maximum SMS attempts.
+	// Init initializes the storage, maxAttempts is used to set the default maximum SMS attempts.
 	// CoolDownTime is the time period on which attempts are allowed.
 	Init(dataDir string, maxAttempts int, coolDownTime time.Duration) (err error)
-	// adds a new user to the storage
+	// AddUser adds a new user to the storage
 	AddUser(userID types.HexBytes, processIDs []types.HexBytes, phone, extra string) (err error)
-	// returns the list of users
+	// Users returns the list of users
 	Users() (users *Users, err error)
-	// returns the full information of a user, including the election list.
+	// User returns the full information of a user, including the election list.
 	User(userID types.HexBytes) (user *UserData, err error)
-	// updates a user
+	// UpdateUser updates a user
 	UpdateUser(udata *UserData) (err error)
-	// returns true if the user belongs to the electionID
+	// BelongsToElection returns true if the user belongs to the electionID
 	BelongsToElection(userID, electionID types.HexBytes) (belongs bool, err error)
-	// increment or decrement remaining challenge attempts by delta
+	// SetAttempts increment or decrement remaining challenge attempts by delta
 	SetAttempts(userID, electionID types.HexBytes, delta int) (err error)
-	// returns the default max attempts
+	// MaxAttempts returns the default max attempts
 	MaxAttempts() (attempts int)
-	// returns the phone and decrease attempt counter
+	// NewAttempt returns the phone and decrease attempt counter
 	NewAttempt(userID, electionID types.HexBytes, challenge int,
 		token *uuid.UUID) (phone *phonenumbers.PhoneNumber, err error)
-	// returns true if the user exists in the database
+	// Exists returns true if the user exists in the database
 	Exists(userID types.HexBytes) (exists bool)
-	// returns true if the user is verified
+	// Verified returns true if the user is verified
 	Verified(userID, electionID types.HexBytes) (verified bool, error error)
-	// returns nil if the challenge is solved correctly. Sets verified to true and removes the
+	// VerifyChallenge returns nil if the challenge is solved correctly. Sets verified to true and removes the
 	// temporary auth token from the storage
 	VerifyChallenge(electionID types.HexBytes, token *uuid.UUID, solution int) (err error)
-	// removes an user from the storage
+	// DelUser removes an user from the storage
 	DelUser(userID types.HexBytes) (err error)
-	// returns the string representation of the storage
+	// String returns the string representation of the storage
 	String() string
 }
