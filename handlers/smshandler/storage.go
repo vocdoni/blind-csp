@@ -55,7 +55,7 @@ type AuthTokenIndex struct {
 	UserID    types.HexBytes `json:"userID" bson:"userid"`
 }
 
-// UserCollection is a dataset containting several users (used for dump and import).
+// UserCollection is a dataset containing several users (used for dump and import).
 type UserCollection struct {
 	Users []UserData `json:"users" bson:"users"`
 }

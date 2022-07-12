@@ -413,6 +413,7 @@ func (ms *MongoStorage) Search(term string) (*Users, error) {
 	}
 	return &users, nil
 }
+
 func (ms *MongoStorage) Import(data []byte) error {
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
