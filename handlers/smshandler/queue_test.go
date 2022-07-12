@@ -13,8 +13,10 @@ import (
 	"go.vocdoni.io/dvote/log"
 )
 
-const testIterations = 20
-const smsThrottleTime = DefaultSMSthrottleTime
+const (
+	testIterations  = 20
+	smsThrottleTime = DefaultSMSthrottleTime
+)
 
 func TestSmsQueue(t *testing.T) {
 	log.Init("debug", "stderr")
@@ -28,7 +30,7 @@ func TestSmsQueue(t *testing.T) {
 	for i := 0; i < testIterations; i++ {
 		err := smsQueue.add(mockUser(i), electionID, mockPhone(i), 1234)
 		qt.Check(t, err, qt.IsNil)
-		//time.Sleep(time.Second) // wait a bit between each mock sms attempt
+		// time.Sleep(time.Second) // wait a bit between each mock sms attempt
 	}
 	smsQueueController(smsQueue.response)
 	panic("intended, to force output logging") // hack to see the output in github logs
