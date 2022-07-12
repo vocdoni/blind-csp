@@ -23,7 +23,7 @@ func TestSmsHandler(t *testing.T) {
 	sh := SmsHandler{SendChallenge: sendChallengeMock}
 	err = sh.Init(dir, "2", "1") // MaxAttempts:2 CoolDownSeconds:1
 	qt.Check(t, err, qt.IsNil)
-	sh.SmsThrottle = time.Nanosecond * 1
+	sh.smsQueue.setThrottle(time.Nanosecond)
 
 	msg := types.Message{}
 	msg.AuthData = []string{"6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac"}

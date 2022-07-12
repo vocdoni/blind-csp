@@ -34,7 +34,6 @@ type SmsHandler struct {
 	smsQueue      *smsQueue
 	mathRandom    *rand.Rand
 	SendChallenge SendChallengeFunc
-	SmsThrottle   time.Duration
 }
 
 // SendChallengeFunc is the function that sends the SMS challenge to a phone number.
@@ -101,17 +100,16 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	}
 
 	// create SMS queue
-	sh.SmsThrottle = DefaultSMSthrottleTime
 	sh.smsQueue = newSmsQueue(
 		smsCoolDownTime,
 		sh.SendChallenge,
 	)
+	sh.smsQueue.setThrottle(DefaultSMSthrottleTime)
 	go sh.smsQueue.run()
 	go sh.smsQueueController()
 	return nil
 }
 
-// We add a wait in order to not stress the SMS provider API
 func (sh *SmsHandler) smsQueueController() {
 	for {
 		r := <-sh.smsQueue.response
@@ -124,7 +122,6 @@ func (sh *SmsHandler) smsQueueController() {
 		} else {
 			log.Infof("challenge sending failed for %s", r.userID)
 		}
-		time.Sleep(sh.SmsThrottle)
 	}
 }
 
