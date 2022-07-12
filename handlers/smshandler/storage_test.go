@@ -18,6 +18,9 @@ import (
 	"github.com/vocdoni/blind-csp/types"
 )
 
+const coolDownTime = 50 * time.Millisecond
+const maxAttempts = 2
+
 func TestStorageJSON(t *testing.T) {
 	js := &JSONstorage{}
 	testStorage(t, js)
@@ -66,7 +69,7 @@ func TestStorageMongoDB(t *testing.T) {
 
 func testStorage(t *testing.T, stg Storage) {
 	dataDir := t.TempDir()
-	err := stg.Init(dataDir, 2, time.Millisecond*50)
+	err := stg.Init(dataDir, maxAttempts, coolDownTime)
 	qt.Assert(t, err, qt.IsNil)
 	// Add users
 	for user, data := range testStorageUsers {
@@ -153,7 +156,7 @@ func testStorage(t *testing.T, stg Storage) {
 	// try another attempt
 	challenge1 = 1989
 	token1 = uuid.New()
-	time.Sleep(time.Millisecond * 50) // cooldown time
+	time.Sleep(coolDownTime)
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
@@ -164,20 +167,34 @@ func testStorage(t *testing.T, stg Storage) {
 
 	// now user is verified, we should not be able to ask for more challenges
 	token1 = uuid.New()
-	time.Sleep(time.Millisecond * 50) // cooldown time
+	time.Sleep(coolDownTime)
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrUserAlreadyVerified)
+
+	// try to do attempts too quickly (not respecting coolDownTime) with user3
+	token1 = uuid.New()
+	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser3),
+		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	qt.Assert(t, err, qt.IsNil)
+	// now coolDownTime is in effect for testStorageUser3 but not for testStorageUser2
+	token1 = uuid.New()
+	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser3),
+		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	qt.Assert(t, err, qt.ErrorIs, ErrAttemptCoolDownTime)
+	// so, wait and try again
+	time.Sleep(coolDownTime)
+	token1 = uuid.New()
+	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser3),
+		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	qt.Assert(t, err, qt.IsNil)
 
 	// try to consume all attempts for user2
 	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
 
-	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), -1)
-	qt.Assert(t, err, qt.IsNil)
-
+	time.Sleep(coolDownTime)
 	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
@@ -189,6 +206,10 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, valid, qt.IsTrue)
 
 	valid, err = stg.Verified(testStrToHex(t, testStorageUser2), testStrToHex(t, testStorageProcess2))
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, valid, qt.IsFalse)
+
+	valid, err = stg.Verified(testStrToHex(t, testStorageUser3), testStrToHex(t, testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 

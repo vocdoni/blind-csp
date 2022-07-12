@@ -33,7 +33,7 @@ func TestSmsQueue(t *testing.T) {
 		// time.Sleep(time.Second) // wait a bit between each mock sms attempt
 	}
 	smsQueueController(smsQueue.response)
-	panic("intended, to force output logging") // hack to see the output in github logs
+	//panic("intended, to force output logging") // hack to see the output in github logs
 }
 
 // smsQueueController was copy-pasted from smshandler.go
