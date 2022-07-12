@@ -34,7 +34,7 @@ type smsQueueResponse struct {
 func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
 	return &smsQueue{
 		queue:         goconcurrentqueue.NewFIFO(),
-		response:      make(chan smsQueueResponse, 10),
+		response:      make(chan smsQueueResponse, 1),
 		sendChallenge: schFnc,
 		ttl:           ttl,
 	}
