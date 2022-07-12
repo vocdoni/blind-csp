@@ -266,6 +266,9 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 		ElectionID:        electionID,
 		RemainingAttempts: storage.MaxAttempts(),
 	}
+	if len(user.Elections) < 1 {
+		user.Elections = make(map[string]smshandler.UserElection, 10)
+	}
 	user.Elections[electionID.String()] = election
 	if err := storage.UpdateUser(user); err != nil {
 		return err
