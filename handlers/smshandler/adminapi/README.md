@@ -332,6 +332,7 @@ curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1
 
 The `extraData` field can store any arbitrary data regarding the user (full name, national ID, birth date, etc.).
 The search endpoint returns the list of userID for a specific term contained inside the extraData field.
+The search text function matches full words, such as "Alice" but not "Ali".
 
 ```bash
 curl  http://127.0.0.1:5001/smsapi/search -d '{"term":"Alice"}' -X POST
@@ -348,7 +349,29 @@ A user can be deleted by its userID.
 ```bash
 curl http://127.0.0.1:5001/smsapi/delUser/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4
 ```
-- Response OK
+` Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "user is unknown"
+}
+```
+### 11. Import
+Import can be used to insert (or update) the database using the output from a dump.
+
+```bash
+curl http://127.0.0.1:5001/smsapi/dump > dump.json
+```
+
+```bash
+curl http://127.0.0.1:5001/smsapi/import -d @dump.json
+```
+` Response OK
 ```json
 {
     "ok": "true"

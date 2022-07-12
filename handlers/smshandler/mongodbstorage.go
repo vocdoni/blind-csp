@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -192,10 +191,14 @@ func (ms *MongoStorage) getUserData(userID types.HexBytes) (*UserData, error) {
 	return &user, nil
 }
 
+// updateUser makes a upsert on the user data
 func (ms *MongoStorage) updateUser(user *UserData) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_, err := ms.users.ReplaceOne(ctx, bson.M{"_id": user.UserID}, user)
+	opts := options.ReplaceOptions{}
+	opts.Upsert = new(bool)
+	*opts.Upsert = true
+	_, err := ms.users.ReplaceOne(ctx, bson.M{"_id": user.UserID}, user, &opts)
 	if err != nil {
 		return fmt.Errorf("cannot update object: %w", err)
 	}
@@ -410,6 +413,20 @@ func (ms *MongoStorage) Search(term string) (*Users, error) {
 	}
 	return &users, nil
 }
+func (ms *MongoStorage) Import(data []byte) error {
+	ms.keysLock.Lock()
+	defer ms.keysLock.Unlock()
+	var collection UserCollection
+	if err := json.Unmarshal(data, &collection); err != nil {
+		return err
+	}
+	for _, u := range collection.Users {
+		if err := ms.updateUser(&u); err != nil {
+			log.Warnf("cannot upsert %s", u.UserID)
+		}
+	}
+	return nil
+}
 
 func (ms *MongoStorage) String() string {
 	ms.keysLock.RLock()
@@ -425,19 +442,18 @@ func (ms *MongoStorage) String() string {
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel2()
-	var output strings.Builder
-	var user UserData
-	output.WriteString("\n")
+	var collection UserCollection
 	for cur.Next(ctx2) {
+		var user UserData
 		err := cur.Decode(&user)
 		if err != nil {
 			log.Warn(err)
 		}
-		data, err := json.MarshalIndent(user, "", " ")
-		if err != nil {
-			log.Warn(err)
-		}
-		output.Write(data)
+		collection.Users = append(collection.Users, user)
 	}
-	return output.String()
+	data, err := json.MarshalIndent(collection, "", " ")
+	if err != nil {
+		log.Warn(err)
+	}
+	return string(data)
 }
