@@ -78,7 +78,7 @@ func main() {
 	log.Infof("using bearer authentication token %s", authToken)
 
 	storage = &smshandler.MongoStorage{}
-	if err := storage.Init("", 5, time.Second*1); err != nil {
+	if err := storage.Init("", 5, time.Second); err != nil {
 		log.Fatal(err)
 	}
 
@@ -147,6 +147,15 @@ func main() {
 	}
 
 	if err := api.RegisterMethod(
+		"/delUser/{userid}",
+		"GET",
+		bearerstdapi.MethodAccessTypePrivate,
+		delUser,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
 		"/newUser/{userid}",
 		"POST",
 		bearerstdapi.MethodAccessTypePrivate,
@@ -160,6 +169,15 @@ func main() {
 		"GET",
 		bearerstdapi.MethodAccessTypePrivate,
 		addElection,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
+		"/search",
+		"POST",
+		bearerstdapi.MethodAccessTypePrivate,
+		search,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -294,6 +312,17 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
 }
 
+func delUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	var userID types.HexBytes
+	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
+		return err
+	}
+	if err := storage.DelUser(userID); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
 func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
 	var oldUserID, newUserID types.HexBytes
 	if err := oldUserID.FromString(ctx.URLParam("olduserid")); err != nil {
@@ -318,4 +347,27 @@ func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCont
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+type searchUserData struct {
+	Term string `json:"term"`
+}
+
+func search(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	searchTerm := searchUserData{}
+	if err := json.Unmarshal(msg.Data, &searchTerm); err != nil {
+		return err
+	}
+	if len(searchTerm.Term) < 1 {
+		return fmt.Errorf("search term cannot be empty")
+	}
+	output, err := storage.Search(searchTerm.Term)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(output)
+	if err != nil {
+		return err
+	}
+	return ctx.Send(data, bearerstdapi.HTTPstatusCodeOK)
 }
