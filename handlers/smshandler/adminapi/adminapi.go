@@ -182,6 +182,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := api.RegisterMethod(
+		"/import",
+		"POST",
+		bearerstdapi.MethodAccessTypePrivate,
+		importDump,
+	); err != nil {
+		log.Fatal(err)
+	}
+
 	// Wait for SIGTERM
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -197,6 +206,13 @@ func ping(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) 
 
 func dump(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
 	return ctx.Send([]byte(storage.String()), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func importDump(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	if err := storage.Import(msg.Data); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
 }
 
 func users(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {

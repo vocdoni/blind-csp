@@ -379,3 +379,8 @@ func (js *JSONstorage) String() string {
 	}
 	return string(outputData)
 }
+
+// TODO
+func (js *JSONstorage) Import(data []byte) error {
+	return nil
+}

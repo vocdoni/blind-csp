@@ -39,7 +39,7 @@ type UserData struct {
 	Phone     *phonenumbers.PhoneNumber `json:"phone,omitempty" bson:"phone,omitempty"`
 }
 
-// UserElection represents an election and its details owned by a user (UserData)
+// UserElection represents an election and its details owned by a user (UserData).
 type UserElection struct {
 	ElectionID        types.HexBytes `json:"electionId" bson:"_id"`
 	RemainingAttempts int            `json:"remainingAttempts" bson:"remainingattempts"`
@@ -53,6 +53,11 @@ type UserElection struct {
 type AuthTokenIndex struct {
 	AuthToken *uuid.UUID     `json:"authToken" bson:"_id"`
 	UserID    types.HexBytes `json:"userID" bson:"userid"`
+}
+
+// UserCollection is a dataset containting several users (used for dump and import).
+type UserCollection struct {
+	Users []UserData `json:"users" bson:"users"`
 }
 
 // HexBytesToElection transforms a slice of HexBytes to []Election.
@@ -104,4 +109,6 @@ type Storage interface {
 	Search(term string) (users *Users, err error)
 	// String returns the string representation of the storage
 	String() string
+	// Import insert or update a collection of users. Follows the Dump() syntax
+	Import(data []byte) (err error)
 }
