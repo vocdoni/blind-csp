@@ -78,7 +78,7 @@ func main() {
 	log.Infof("using bearer authentication token %s", authToken)
 
 	storage = &smshandler.MongoStorage{}
-	if err := storage.Init("", 5); err != nil {
+	if err := storage.Init("", 5, time.Second); err != nil {
 		log.Fatal(err)
 	}
 
@@ -147,6 +147,15 @@ func main() {
 	}
 
 	if err := api.RegisterMethod(
+		"/delUser/{userid}",
+		"GET",
+		bearerstdapi.MethodAccessTypePrivate,
+		delUser,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
 		"/newUser/{userid}",
 		"POST",
 		bearerstdapi.MethodAccessTypePrivate,
@@ -160,6 +169,15 @@ func main() {
 		"GET",
 		bearerstdapi.MethodAccessTypePrivate,
 		addElection,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
+		"/search",
+		"POST",
+		bearerstdapi.MethodAccessTypePrivate,
+		search,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -248,7 +266,7 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 		ElectionID:        electionID,
 		RemainingAttempts: storage.MaxAttempts(),
 	}
-	user.Elections = append(user.Elections, election)
+	user.Elections[electionID.String()] = election
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
@@ -263,18 +281,18 @@ func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCon
 	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
-	if err := storage.IncreaseAttempt(userID, election); err != nil {
+	if err := storage.SetAttempts(userID, election, 1); err != nil {
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
 }
 
 func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
-	var userID, election types.HexBytes
+	var userID, electionID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
 	}
-	if err := election.FromString(ctx.URLParam("electionid")); err != nil {
+	if err := electionID.FromString(ctx.URLParam("electionid")); err != nil {
 		return err
 	}
 	consumed := ctx.URLParam("consumed") == "true" || ctx.URLParam("consumed") == "1"
@@ -282,12 +300,24 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err != nil {
 		return err
 	}
-	i := user.FindElection(election)
-	if i == -1 {
-		return fmt.Errorf("election not found for user %s", user.UserID)
+	election, ok := user.Elections[electionID.String()]
+	if !ok {
+		return fmt.Errorf("user does not belong to election")
 	}
-	user.Elections[i].Consumed = consumed
+	election.Consumed = consumed
+	user.Elections[electionID.String()] = election // Redundant?
 	if err := storage.UpdateUser(user); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func delUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	var userID types.HexBytes
+	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
+		return err
+	}
+	if err := storage.DelUser(userID); err != nil {
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
@@ -317,4 +347,27 @@ func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCont
 		return err
 	}
 	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+type searchUserData struct {
+	Term string `json:"term"`
+}
+
+func search(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	searchTerm := searchUserData{}
+	if err := json.Unmarshal(msg.Data, &searchTerm); err != nil {
+		return err
+	}
+	if len(searchTerm.Term) < 1 {
+		return fmt.Errorf("search term cannot be empty")
+	}
+	output, err := storage.Search(searchTerm.Term)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(output)
+	if err != nil {
+		return err
+	}
+	return ctx.Send(data, bearerstdapi.HTTPstatusCodeOK)
 }

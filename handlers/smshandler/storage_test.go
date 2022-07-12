@@ -1,14 +1,21 @@
 package smshandler
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
+	dtypes "github.com/docker/docker/api/types"
+	dcontainer "github.com/docker/docker/api/types/container"
+	dclient "github.com/docker/docker/client"
 	qt "github.com/frankban/quicktest"
 	"github.com/google/uuid"
-	"github.com/vocdoni/blind-csp/types"
-
 	"github.com/strikesecurity/strikememongo"
+	"github.com/vocdoni/blind-csp/types"
 )
 
 func TestStorageJSON(t *testing.T) {
@@ -17,35 +24,64 @@ func TestStorageJSON(t *testing.T) {
 }
 
 func TestStorageMongoDB(t *testing.T) {
-	stg := &MongoStorage{}
+	imageName := "mongo:5.0.9"
+	containerName := fmt.Sprintf("gotest_mongo_%08d", rand.Intn(100000000))
 
-	mongoServer, err := strikememongo.Start("4.0.28")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer mongoServer.Stop()
+	ctx := context.Background()
+	cli, err := dclient.NewClientWithOpts(dclient.FromEnv, dclient.WithAPIVersionNegotiation())
+	qt.Check(t, err, qt.IsNil)
 
-	err = os.Setenv("CSP_MONGODB_URL", mongoServer.URI())
+	out, err := cli.ImagePull(ctx, imageName, dtypes.ImagePullOptions{})
+	qt.Check(t, err, qt.IsNil)
+	defer func() { _ = out.Close() }()
+	_, _ = io.Copy(os.Stdout, out) // drain out until closed, this waits until ImagePull is finished
+
+	resp, err := cli.ContainerCreate(ctx, &dcontainer.Config{
+		Image: imageName,
+	}, nil, nil, nil, containerName)
+	qt.Check(t, err, qt.IsNil)
+
+	// best-effort to cleanup the container in most situations, including panic()
+	// but note this is not run in case of SIGKILL or CTRL-C and a running mongo docker is left behind
+	defer func() {
+		_ = cli.ContainerRemove(ctx, resp.ID, dtypes.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		})
+	}()
+
+	err = cli.ContainerStart(ctx, resp.ID, dtypes.ContainerStartOptions{})
+	qt.Check(t, err, qt.IsNil)
+
+	ct, err := cli.ContainerInspect(ctx, resp.ID)
+	qt.Check(t, err, qt.IsNil)
+
+	err = os.Setenv("CSP_MONGODB_URL", fmt.Sprintf("mongodb://%s", ct.NetworkSettings.IPAddress))
 	qt.Check(t, err, qt.IsNil)
 	err = os.Setenv("CSP_DATABASE", strikememongo.RandomDatabase())
 	qt.Check(t, err, qt.IsNil)
 
-	testStorage(t, stg)
+	testStorage(t, &MongoStorage{})
 }
 
 func testStorage(t *testing.T, stg Storage) {
 	dataDir := t.TempDir()
-	err := stg.Init(dataDir, 2)
+	err := stg.Init(dataDir, 2, time.Millisecond*50)
 	qt.Assert(t, err, qt.IsNil)
 	// Add users
 	for user, data := range testStorageUsers {
 		t.Logf("adding user %s", user)
 		uh, ph := testStorageToHex(t, user, data.elections)
-		err := stg.AddUser(uh, ph, data.phone, "")
+		err := stg.AddUser(uh, ph, data.phone, data.extra)
 		qt.Assert(t, err, qt.IsNil)
 	}
-
 	t.Logf(stg.String())
+
+	users, err := stg.Users()
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 3)
+	t.Logf("Users: %s", users.Users)
+
 	// Check user 1 with process 1 (should be valid)
 	valid, err := stg.BelongsToElection(
 		testStrToHex(t, testStorageUser1),
@@ -117,6 +153,7 @@ func testStorage(t *testing.T, stg Storage) {
 	// try another attempt
 	challenge1 = 1989
 	token1 = uuid.New()
+	time.Sleep(time.Millisecond * 50) // cooldown time
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
@@ -127,25 +164,26 @@ func testStorage(t *testing.T, stg Storage) {
 
 	// now user is verified, we should not be able to ask for more challenges
 	token1 = uuid.New()
+	time.Sleep(time.Millisecond * 50) // cooldown time
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
 		testStrToHex(t, testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrUserAlreadyVerified)
 
 	// try to consume all attempts for user2
-	token1 = uuid.New()
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), challenge1, &token1)
+	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
+		testStrToHex(t, testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
-	token1 = uuid.New()
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), challenge1, &token1)
+
+	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
+		testStrToHex(t, testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
+
 	token1 = uuid.New()
 	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
 		testStrToHex(t, testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrTooManyAttempts)
 
-	// Test verified
+	// test verified
 	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
@@ -155,6 +193,18 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, valid, qt.IsFalse)
 
 	t.Logf(stg.String())
+
+	// test search term
+	users, err = stg.Search("Smith")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 2)
+	t.Logf("%s (%d)", users.Users, len(users.Users))
+	users, err = stg.Search("Rocky")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 0)
+	users, err = stg.Search("1940")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 1)
 }
 
 func testStrToHex(t *testing.T, payload string) types.HexBytes {
@@ -184,18 +234,30 @@ var (
 	testStorageProcess2      = "e1fed0c1bf0bf797cedfa30e1d92ecf7a9047b53043ea8a242388c276855ccaf"
 	testStorageUser1         = "d763cda19aa52c2ff6e13a02989413e47abbee356bf0a8a21a73fc9af48d6ed2"
 	testStoragePhone1        = "+34655111222"
+	testStorageExtra1        = "John Smith 1977"
 	testStorageUser2         = "316008c51db028fa544dbf68a4c70811728b602fee46a5d0c8dc0f6300a3c474"
 	testStoragePhone2        = "677888999"
+	testStorageExtra2        = "John Lewis 1940"
 	testStorageUser3         = "0467aa5a72daf0286ad89c5220f84a7b2133fbd51ab5d3a85a049a645f54f32f"
 	testStoragePhone3        = "+1-541-754-3010"
+	testStorageExtra3        = "Alice Smith 1971"
 	testStorageUserNonExists = "22fa4de0788c38755239589dfa18a8d7adbe8bb96425c4641389008470fa0377"
 
 	testStorageUsers = map[string]testUserData{
-		testStorageUser1: {elections: []string{testStorageProcess1}, phone: testStoragePhone1},
-		testStorageUser2: {elections: []string{testStorageProcess2}, phone: testStoragePhone2},
+		testStorageUser1: {
+			elections: []string{testStorageProcess1},
+			phone:     testStoragePhone1,
+			extra:     testStorageExtra1,
+		},
+		testStorageUser2: {
+			elections: []string{testStorageProcess2},
+			phone:     testStoragePhone2,
+			extra:     testStorageExtra2,
+		},
 		testStorageUser3: {
 			elections: []string{testStorageProcess1, testStorageProcess2},
 			phone:     testStoragePhone3,
+			extra:     testStorageExtra3,
 		},
 	}
 )
@@ -203,4 +265,5 @@ var (
 type testUserData struct {
 	elections []string
 	phone     string
+	extra     string
 }

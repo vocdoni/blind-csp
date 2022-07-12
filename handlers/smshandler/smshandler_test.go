@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/vocdoni/blind-csp/types"
@@ -18,9 +20,10 @@ func TestSmsHandler(t *testing.T) {
 	err = os.Setenv("CSP_IMPORT_FILE", csvFile)
 	qt.Check(t, err, qt.IsNil)
 
-	sh := SmsHandler{SendChallengeFunc: SendChallengeMock}
-	err = sh.Init(dir, "2")
+	sh := SmsHandler{SendChallenge: sendChallengeMock}
+	err = sh.Init(dir, "2", "1") // MaxAttempts:2 CoolDownSeconds:1
 	qt.Check(t, err, qt.IsNil)
+	sh.SmsThrottle = time.Nanosecond * 1
 
 	msg := types.Message{}
 	msg.AuthData = []string{"6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac"}
@@ -32,7 +35,12 @@ func TestSmsHandler(t *testing.T) {
 	resp := sh.Auth(nil, &msg, electionID, "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
+	// second attempt (should fail because of cooldown time)
+	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	qt.Check(t, resp.Success, qt.IsFalse)
+
 	// second attempt (should work)
+	time.Sleep(time.Second * 1)
 	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
@@ -56,18 +64,21 @@ func TestSmsHandler(t *testing.T) {
 	qt.Check(t, resp.Success, qt.IsFalse)
 
 	// second attempt with right solution (should work)
+	time.Sleep(time.Second * 1)
 	msg.AuthData = []string{"bf5b6a9c69a5abee870b3667e92c589ef9c13458be0fc0493b2ba5a9658c690b"}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
+	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", ChallengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
-	qt.Check(t, resp.Success, qt.IsTrue)
+	qt.Check(t, resp.Success, qt.IsTrue, qt.Commentf("%s", resp.Response))
 
 	// Try again, it should fail
+	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", ChallengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
 	qt.Check(t, resp.Success, qt.IsFalse)
 }
