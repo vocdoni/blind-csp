@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -336,6 +337,21 @@ func (js *JSONstorage) DelUser(userID types.HexBytes) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (js *JSONstorage) Search(term string) (*Users, error) {
+	var users Users
+	if err := js.kv.Iterate(nil, func(key, value []byte) bool {
+		if !strings.Contains(string(value), term) {
+			return true
+		}
+		users.Users = append(users.Users, key2userID(key))
+		return true
+	}); err != nil {
+		return nil, err
+	}
+
+	return &users, nil
 }
 
 func (js *JSONstorage) String() string {

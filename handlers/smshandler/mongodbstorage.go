@@ -81,6 +81,19 @@ func (ms *MongoStorage) Init(dataDir string, maxAttempts int, coolDownTime time.
 	ms.maxSmsAttempts = maxAttempts
 	ms.coolDownTime = coolDownTime
 
+	// Create text index on `extra` for finding user data
+	ctx, cancel3 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel3()
+	index := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "extradata", Value: "text"},
+		},
+	}
+	_, err = ms.users.Indexes().CreateOne(ctx, index)
+	if err != nil {
+		return err
+	}
+
 	// If reset flag is enabled, drop database documents
 	// TODO: make the reset function part of the storage interface
 	if reset := os.Getenv("CSP_RESET_DB"); reset != "" {
@@ -370,6 +383,32 @@ func (ms *MongoStorage) DelUser(userID types.HexBytes) error {
 	defer cancel()
 	_, err := ms.users.DeleteOne(ctx, bson.M{"_id": userID})
 	return err
+}
+
+func (ms *MongoStorage) Search(term string) (*Users, error) {
+	ms.keysLock.RLock()
+	defer ms.keysLock.RUnlock()
+	opts := options.FindOptions{}
+	opts.SetProjection(bson.M{"_id": true})
+	filter := bson.M{"$text": bson.M{"$search": term}}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cur, err := ms.users.Find(ctx, filter, &opts)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+	var users Users
+	for cur.Next(ctx) {
+		user := UserData{}
+		err := cur.Decode(&user)
+		if err != nil {
+			log.Warn(err)
+		}
+		users.Users = append(users.Users, user.UserID)
+	}
+	return &users, nil
 }
 
 func (ms *MongoStorage) String() string {
