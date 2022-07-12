@@ -45,7 +45,9 @@ func (sh *SmsHandler) Name() string {
 }
 
 // Init initializes the handler.
-// Takes one argument for persistent data directory.
+// First argument is the data directory (mandatory).
+// Second argument is the SMS cooldown time in milliseconds (optional).
+// Third argument is the SMS throttle time in milliseconds (optional).
 func (sh *SmsHandler) Init(opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("no data dir provided")
@@ -59,21 +61,32 @@ func (sh *SmsHandler) Init(opts ...string) error {
 			return err
 		}
 	}
-	// set default cool down time
+	// set default sms cooldown time
 	smsCoolDownTime := DefaultSMScoolDownTime
 	if len(opts) > 2 {
 		s, err := strconv.Atoi(opts[2])
 		if err != nil {
 			return err
 		}
-		smsCoolDownTime = time.Second * time.Duration(s)
+		smsCoolDownTime = time.Millisecond * time.Duration(s)
 	}
+	// set default sms throttle time
+	smsThrottle := DefaultSMSthrottleTime
+	if len(opts) > 3 {
+		s, err := strconv.Atoi(opts[3])
+		if err != nil {
+			return err
+		}
+		smsThrottle = time.Millisecond * time.Duration(s)
+	}
+
 	// if MongoDB env var is defined, use MongoDB as storage backend
 	if os.Getenv("CSP_MONGODB_URL") != "" {
 		sh.stg = &MongoStorage{}
 	} else {
 		sh.stg = &JSONstorage{}
 	}
+
 	// set math random source
 	sh.mathRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
 	if err := sh.stg.Init(
@@ -83,6 +96,7 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	); err != nil {
 		return err
 	}
+
 	// set challenge function (if not defined, use Twilio)
 	if sh.SendChallenge == nil {
 		switch os.Getenv("SMS_PROVIDER") {
@@ -102,9 +116,9 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	// create SMS queue
 	sh.smsQueue = newSmsQueue(
 		smsCoolDownTime,
+		smsThrottle,
 		sh.SendChallenge,
 	)
-	sh.smsQueue.setThrottle(DefaultSMSthrottleTime)
 	go sh.smsQueue.run()
 	go sh.smsQueueController()
 	return nil

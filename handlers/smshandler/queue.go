@@ -32,17 +32,14 @@ type smsQueueResponse struct {
 	success    bool
 }
 
-func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
+func newSmsQueue(ttl, throttle time.Duration, schFnc SendChallengeFunc) *smsQueue {
 	return &smsQueue{
 		queue:         goconcurrentqueue.NewFIFO(),
 		response:      make(chan smsQueueResponse, 1),
 		sendChallenge: schFnc,
 		ttl:           ttl,
+		throttle:      DefaultSMSthrottleTime,
 	}
-}
-
-func (sq *smsQueue) setThrottle(throttle time.Duration) {
-	sq.throttle = throttle
 }
 
 func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
