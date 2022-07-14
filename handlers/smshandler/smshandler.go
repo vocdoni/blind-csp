@@ -135,10 +135,10 @@ func (sh *SmsHandler) smsQueueController() {
 			if err := sh.stg.SetAttempts(r.userID, r.electionID, -1); err != nil {
 				log.Warnf("challenge cannot be sent: %v", err)
 			} else {
-				log.Infof("challenge successfully sent to %s", r.userID)
+				log.Infof("%s: challenge successfully sent to user %s", r, r.userID)
 			}
 		} else {
-			log.Infof("challenge sending failed for %s", r.userID)
+			log.Warnf("%s: challenge sending failed", r)
 		}
 	}
 }
@@ -260,7 +260,7 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 		// Get the phone number. This methods checks for electionID and user verification status.
 		phone, err := sh.stg.NewAttempt(userID, electionID, challenge, &atoken)
 		if err != nil {
-			log.Warn(err)
+			log.Warnf("new attempt for user %s failed: %v", userID, err)
 			return types.AuthResponse{Response: []string{err.Error()}}
 		}
 		if phone == nil {
@@ -272,7 +272,7 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 			log.Errorf("cannot enqueue challenge: %v", err)
 			return types.AuthResponse{Response: []string{"problem with SMS challenge system"}}
 		}
-		log.Infof("user %s challenged with %d", userID.String(), challenge)
+		log.Infof("user %s challenged with %d at phone %d", userID.String(), challenge, phone.GetNationalNumber())
 
 		// Build success reply
 		phoneStr := strconv.FormatUint(phone.GetNationalNumber(), 10)
@@ -295,7 +295,7 @@ func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
 		}
 		// Verify the challenge solution
 		if err := sh.stg.VerifyChallenge(electionID, c.AuthToken, solution); err != nil {
-			log.Warn(err)
+			log.Warnf("verify challenge %d failed: %v", solution, err)
 			return types.AuthResponse{Response: []string{"challenge not completed"}}
 		}
 
