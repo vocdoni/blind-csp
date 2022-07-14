@@ -16,7 +16,7 @@ type challengeData struct {
 	phone      *phonenumbers.PhoneNumber
 	challenge  int
 	startTime  time.Time
-	attempts   int
+	retries    int
 	success    bool
 }
 
@@ -49,7 +49,7 @@ func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.P
 		phone:      phone,
 		challenge:  challenge,
 		startTime:  time.Now(),
-		attempts:   0,
+		retries:    0,
 	}
 	defer log.Debugf("%s: enqueued new sms with challenge", c)
 	return sq.queue.Enqueue(c)
@@ -85,14 +85,14 @@ func (sq *smsQueue) run() {
 
 func (sq *smsQueue) reenqueue(challenge challengeData) error {
 	// check if we have to enqueue it again or not
-	if challenge.attempts >= queueSMSmaxAttempts || time.Now().After(challenge.startTime.Add(sq.ttl)) {
-		return fmt.Errorf("TTL or max attempts reached")
+	if challenge.retries >= DefaultSMSqueueMaxRetries || time.Now().After(challenge.startTime.Add(sq.ttl)) {
+		return fmt.Errorf("TTL or max retries reached")
 	}
 	// enqueue it again
-	challenge.attempts++
+	challenge.retries++
 	if err := sq.queue.Enqueue(challenge); err != nil {
 		return fmt.Errorf("cannot enqueue sms: %w", err)
 	}
-	log.Infof("%s: re-enqueued sms, attempt #%d", challenge, challenge.attempts)
+	log.Infof("%s: re-enqueued sms, retry #%d", challenge, challenge.retries)
 	return nil
 }
