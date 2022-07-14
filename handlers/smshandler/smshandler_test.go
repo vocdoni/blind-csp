@@ -17,7 +17,7 @@ func TestSmsHandler(t *testing.T) {
 
 	dir := t.TempDir()
 	challenge := newChallengeMock()
-	sh := SmsHandler{SendChallenge: challenge.sendChallenge}
+	sh := SmsHandler{SendChallenge: []SendChallengeFunc{challenge.sendChallenge}}
 	err := sh.Init(dir, "2", "200", "5") // MaxAttempts:2 CoolDownSeconds:200ms Throttle:5ms
 	qt.Check(t, err, qt.IsNil)
 
