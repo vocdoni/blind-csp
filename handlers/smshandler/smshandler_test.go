@@ -9,9 +9,12 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/vocdoni/blind-csp/types"
+	"go.vocdoni.io/dvote/log"
 )
 
 func TestSmsHandler(t *testing.T) {
+	log.Init("debug", "stderr")
+
 	dir := t.TempDir()
 	challenge := newChallengeMock()
 	sh := SmsHandler{SendChallenge: challenge.sendChallenge}
