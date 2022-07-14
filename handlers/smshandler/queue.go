@@ -17,10 +17,11 @@ type challengeData struct {
 	challenge  int
 	startTime  time.Time
 	attempts   int
+	success    bool
 }
 
 func (c challengeData) String() string {
-	return fmt.Sprintf("%d/%d", c.phone.GetNationalNumber(), c.challenge)
+	return fmt.Sprintf("%d[%d]", c.phone.GetNationalNumber(), c.challenge)
 }
 
 type smsQueue struct {
@@ -28,19 +29,13 @@ type smsQueue struct {
 	ttl           time.Duration
 	throttle      time.Duration
 	sendChallenge SendChallengeFunc
-	response      chan (smsQueueResponse)
-}
-
-type smsQueueResponse struct {
-	userID     types.HexBytes
-	electionID types.HexBytes
-	success    bool
+	response      chan (challengeData)
 }
 
 func newSmsQueue(ttl, throttle time.Duration, schFnc SendChallengeFunc) *smsQueue {
 	return &smsQueue{
 		queue:         goconcurrentqueue.NewFIFO(),
-		response:      make(chan smsQueueResponse, 1),
+		response:      make(chan challengeData, 1),
 		sendChallenge: schFnc,
 		ttl:           ttl,
 		throttle:      throttle,
@@ -48,17 +43,16 @@ func newSmsQueue(ttl, throttle time.Duration, schFnc SendChallengeFunc) *smsQueu
 }
 
 func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
-	log.Debugf("%d/%d: enqueued new sms with challenge", phone.GetNationalNumber(), challenge)
-	return sq.queue.Enqueue(
-		challengeData{
-			userID:     userID,
-			electionID: electionID,
-			phone:      phone,
-			challenge:  challenge,
-			startTime:  time.Now(),
-			attempts:   0,
-		},
-	)
+	c := challengeData{
+		userID:     userID,
+		electionID: electionID,
+		phone:      phone,
+		challenge:  challenge,
+		startTime:  time.Now(),
+		attempts:   0,
+	}
+	defer log.Debugf("%s: enqueued new sms with challenge", c)
+	return sq.queue.Enqueue(c)
 }
 
 func (sq *smsQueue) run() {
@@ -76,22 +70,16 @@ func (sq *smsQueue) run() {
 			if err := sq.reenqueue(challenge); err != nil {
 				log.Warnf("%s: removed from sms queue: %v", challenge, err)
 				// Send a signal (channel) to let the caller know we are removing this element
-				sq.response <- smsQueueResponse{
-					userID:     challenge.userID,
-					electionID: challenge.electionID,
-					success:    false,
-				}
+				challenge.success = false
+				sq.response <- challenge
 			}
 			continue
 		}
 		// Success
 		log.Debugf("%s: sms with challenge successfully sent", challenge)
 		// Send a signal (channel) to let the caller know we succeed
-		sq.response <- smsQueueResponse{
-			userID:     challenge.userID,
-			electionID: challenge.electionID,
-			success:    true,
-		}
+		challenge.success = true
+		sq.response <- challenge
 	}
 }
 
