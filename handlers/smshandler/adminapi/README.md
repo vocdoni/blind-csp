@@ -380,6 +380,26 @@ curl http://127.0.0.1:5001/smsapi/import -d @dump.json
 - Response Error
 ```json
 {
-    "error": "<error goes here>"
+    "error": "error goes here"
+}
+```
+
+### 12. Set phone
+A user phone can be changed by using the following call.
+
+- Request
+```bash
+curl http://127.0.0.1:5001/smsapi/setPhone/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/+34700800900
+```
+- Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "error goes here"
 }
 ```

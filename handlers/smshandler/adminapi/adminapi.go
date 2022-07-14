@@ -13,6 +13,7 @@ import (
 	"go.vocdoni.io/dvote/log"
 
 	"github.com/google/uuid"
+	"github.com/nyaruka/phonenumbers"
 	flag "github.com/spf13/pflag"
 	"github.com/vocdoni/blind-csp/handlers/smshandler"
 	"github.com/vocdoni/blind-csp/types"
@@ -174,6 +175,15 @@ func main() {
 	}
 
 	if err := api.RegisterMethod(
+		"/setPhone/{userid}/{phone}",
+		"GET",
+		bearerstdapi.MethodAccessTypePrivate,
+		setPhone,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
 		"/search",
 		"POST",
 		bearerstdapi.MethodAccessTypePrivate,
@@ -325,6 +335,27 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	}
 	election.Consumed = consumed
 	user.Elections[electionID.String()] = election // Redundant?
+	if err := storage.UpdateUser(user); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func setPhone(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	var userID types.HexBytes
+	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
+		return err
+	}
+	phone := ctx.URLParam("phone")
+	user, err := storage.User(userID)
+	if err != nil {
+		return err
+	}
+	p, err := phonenumbers.Parse(phone, smshandler.DefaultPhoneCountry)
+	if err != nil {
+		return err
+	}
+	user.Phone = p
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
