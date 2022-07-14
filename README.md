@@ -211,10 +211,26 @@ curl http://127.0.0.1:5000/v1/auth/elections/indexer/a216bc43310f46d66d39fdc073e
 - Response Ok
 ``` json
 {
-  "elections":[
-    "a9893a41fc7046d66d39fdc073ed901af6bec66ecc070a97f9cb2dda02b11265"
-    ]
+  "elections": [
+    {
+      "electionId": "2222222222222222222222222222222222222222222222222222222222222222",
+      "remainingAttempts": 5,
+      "consumed": false,
+      "extra": [
+        "41"
+      ]
+    },
+    {
+      "electionId": "1111111111111111111111111111111111111111111111111111111111111111",
+      "remainingAttempts": 5,
+      "consumed": false,
+      "extra": [
+        "41"
+      ]
+    }
+  ]
 }
+
 ```
 - Response Error
 ```json

@@ -23,7 +23,7 @@ var (
 	// ErrChallengeCodeFailure is returned when the challenge code does not match.
 	ErrChallengeCodeFailure = fmt.Errorf("challenge code do not match")
 	// ErrAttemptCoolDownTime is returned if the cooldown time for a challenge attempt is not reached.
-	ErrAttemptCoolDownTime = fmt.Errorf("attempt cooldown time not rached")
+	ErrAttemptCoolDownTime = fmt.Errorf("attempt cooldown time not reached")
 )
 
 // Users is the list of smshandler users.

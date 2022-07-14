@@ -380,6 +380,6 @@ curl http://127.0.0.1:5001/smsapi/import -d @dump.json
 - Response Error
 ```json
 {
-    "error": "user is unknown"
+    "error": "<error goes here>"
 }
 ```

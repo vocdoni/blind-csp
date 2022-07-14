@@ -209,12 +209,23 @@ func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
 		log.Warnf("cannot get indexer elections: %v", err)
 		return nil
 	}
+	// Get the last two digits of the phone and return them as extraData
+	phoneStr := ""
+	if user.Phone != nil {
+		phoneStr = strconv.FormatUint(user.Phone.GetNationalNumber(), 10)
+		if len(phoneStr) < 3 {
+			phoneStr = ""
+		} else {
+			phoneStr = phoneStr[len(phoneStr)-2:]
+		}
+	}
 	indexerElections := []types.Election{}
 	for _, e := range user.Elections {
 		ie := types.Election{
 			RemainingAttempts: e.RemainingAttempts,
 			Consumed:          e.Consumed,
 			ElectionID:        e.ElectionID,
+			ExtraData:         []string{phoneStr},
 		}
 		indexerElections = append(indexerElections, ie)
 	}
