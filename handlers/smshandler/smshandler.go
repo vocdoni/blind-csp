@@ -45,9 +45,10 @@ func (sh *SmsHandler) Name() string {
 }
 
 // Init initializes the handler.
-// First argument is the data directory (mandatory).
-// Second argument is the SMS cooldown time in milliseconds (optional).
-// Third argument is the SMS throttle time in milliseconds (optional).
+// First argument is the maximum SMS challenge attempts per user and election.
+// Second is the data directory (mandatory).
+// Third is the SMS cooldown time in milliseconds (optional).
+// Fourth is the SMS throttle time in milliseconds (optional).
 func (sh *SmsHandler) Init(opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("no data dir provided")
@@ -78,6 +79,9 @@ func (sh *SmsHandler) Init(opts ...string) error {
 			return err
 		}
 		smsThrottle = time.Millisecond * time.Duration(s)
+	}
+	if smsCoolDownTime < smsThrottle {
+		return fmt.Errorf("sms cooldown time cannot be smaller than sms throttle")
 	}
 
 	// if MongoDB env var is defined, use MongoDB as storage backend

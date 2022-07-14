@@ -3,7 +3,7 @@ package smshandler
 import (
 	"fmt"
 	"os"
-	"sync/atomic"
+	"sync"
 
 	messagebird "github.com/messagebird/go-rest-api/v7"
 	mbsms "github.com/messagebird/go-rest-api/v7/sms"
@@ -80,9 +80,45 @@ func (sms *MessageBirdSMS) SendChallenge(phone *phonenumbers.PhoneNumber, challe
 	return err
 }
 
-var challengeSolutionMock int32
+type challengeMock struct {
+	lock      sync.RWMutex
+	solutions map[string]int
+	indexes   map[string]int
+}
 
-func sendChallengeMock(phone *phonenumbers.PhoneNumber, challenge int) error {
-	atomic.StoreInt32(&challengeSolutionMock, int32(challenge))
+func newChallengeMock() *challengeMock {
+	return &challengeMock{
+		solutions: make(map[string]int),
+		indexes:   make(map[string]int),
+	}
+}
+
+func (cm *challengeMock) sendChallenge(phone *phonenumbers.PhoneNumber, challenge int) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	p := fmt.Sprintf("%d", phone.GetNationalNumber())
+	index, ok := cm.indexes[p]
+	if !ok {
+		index = 0
+	} else {
+		index++
+	}
+	cm.solutions[challengeSolutionKey(phone, index)] = challenge
+	cm.indexes[p] = index
+	log.Debugf("challenge mock added %d/%d/%d", index, phone.GetNationalNumber(), challenge)
 	return nil
+}
+
+func (cm *challengeMock) getSolution(phone *phonenumbers.PhoneNumber, index int) int {
+	cm.lock.RLock()
+	defer cm.lock.RUnlock()
+	solution, ok := cm.solutions[challengeSolutionKey(phone, index)]
+	if !ok {
+		panic("no challenge solution for phone with index")
+	}
+	return solution
+}
+
+func challengeSolutionKey(phone *phonenumbers.PhoneNumber, index int) string {
+	return fmt.Sprintf("%d_%d", phone.GetNationalNumber(), index)
 }

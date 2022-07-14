@@ -84,111 +84,111 @@ func testStorage(t *testing.T, stg Storage) {
 
 	// Check user 1 with process 1 (should be valid)
 	valid, err := stg.BelongsToElection(
-		testStrToHex(t, testStorageUser1),
-		testStrToHex(t, testStorageProcess1),
+		testStrToHex(testStorageUser1),
+		testStrToHex(testStorageProcess1),
 	)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
 
 	// Check user 1 with process 2 (should be invalid)
 	valid, err = stg.BelongsToElection(
-		testStrToHex(t, testStorageUser1),
-		testStrToHex(t, testStorageProcess2),
+		testStrToHex(testStorageUser1),
+		testStrToHex(testStorageProcess2),
 	)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
 	// Check user 3 with process 1 (should be valid)
 	valid, err = stg.BelongsToElection(
-		testStrToHex(t, testStorageUser3),
-		testStrToHex(t, testStorageProcess1),
+		testStrToHex(testStorageUser3),
+		testStrToHex(testStorageProcess1),
 	)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
 
 	// Check user 3 with process 2 (should be valid)
 	valid, err = stg.BelongsToElection(
-		testStrToHex(t, testStorageUser3),
-		testStrToHex(t, testStorageProcess2),
+		testStrToHex(testStorageUser3),
+		testStrToHex(testStorageProcess2),
 	)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
 
 	// Test exists
-	valid = stg.Exists(testStrToHex(t, testStorageUser1))
+	valid = stg.Exists(testStrToHex(testStorageUser1))
 	qt.Assert(t, valid, qt.IsTrue)
-	valid = stg.Exists(testStrToHex(t, testStorageUserNonExists))
+	valid = stg.Exists(testStrToHex(testStorageUserNonExists))
 	qt.Assert(t, valid, qt.IsFalse)
 
 	// Test get elections
-	user, err := stg.User(testStrToHex(t, testStorageUser3))
+	user, err := stg.User(testStrToHex(testStorageUser3))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, user.Elections, qt.HasLen, 2)
 
 	// Test verified
-	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
+	valid, err = stg.Verified(testStrToHex(testStorageUser1), testStrToHex(testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
 	// Test attempts
 	token1 := uuid.New()
 	challenge1 := 1987
-	phoneN, err := stg.NewAttempt(testStrToHex(t, testStorageUser1),
-		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	phoneN, err := stg.NewAttempt(testStrToHex(testStorageUser1),
+		testStrToHex(testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, int(*phoneN.CountryCode), qt.Equals, 34)
 
 	// try wrong process
-	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess2), &token1, challenge1)
+	err = stg.VerifyChallenge(testStrToHex(testStorageProcess2), &token1, challenge1)
 	qt.Assert(t, err, qt.ErrorIs, ErrUserNotBelongsToElection)
 
 	// try wrong solution
-	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess1), &token1, 1234)
+	err = stg.VerifyChallenge(testStrToHex(testStorageProcess1), &token1, 1234)
 	qt.Assert(t, err, qt.ErrorIs, ErrChallengeCodeFailure)
 
 	// try valid solution but should not be allowed (already tried before)
-	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess1), &token1, challenge1)
+	err = stg.VerifyChallenge(testStrToHex(testStorageProcess1), &token1, challenge1)
 	qt.Assert(t, err, qt.ErrorIs, ErrInvalidAuthToken)
 
 	// try another attempt
 	challenge1 = 1989
 	token1 = uuid.New()
 	time.Sleep(time.Millisecond * 50) // cooldown time
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
-		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	_, err = stg.NewAttempt(testStrToHex(testStorageUser1),
+		testStrToHex(testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.IsNil)
 
 	// try valid solution, should work
-	err = stg.VerifyChallenge(testStrToHex(t, testStorageProcess1), &token1, challenge1)
+	err = stg.VerifyChallenge(testStrToHex(testStorageProcess1), &token1, challenge1)
 	qt.Assert(t, err, qt.IsNil)
 
 	// now user is verified, we should not be able to ask for more challenges
 	token1 = uuid.New()
 	time.Sleep(time.Millisecond * 50) // cooldown time
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser1),
-		testStrToHex(t, testStorageProcess1), challenge1, &token1)
+	_, err = stg.NewAttempt(testStrToHex(testStorageUser1),
+		testStrToHex(testStorageProcess1), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrUserAlreadyVerified)
 
 	// try to consume all attempts for user2
-	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), -1)
+	err = stg.SetAttempts(testStrToHex(testStorageUser2),
+		testStrToHex(testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
 
-	err = stg.SetAttempts(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), -1)
+	err = stg.SetAttempts(testStrToHex(testStorageUser2),
+		testStrToHex(testStorageProcess2), -1)
 	qt.Assert(t, err, qt.IsNil)
 
 	token1 = uuid.New()
-	_, err = stg.NewAttempt(testStrToHex(t, testStorageUser2),
-		testStrToHex(t, testStorageProcess2), challenge1, &token1)
+	_, err = stg.NewAttempt(testStrToHex(testStorageUser2),
+		testStrToHex(testStorageProcess2), challenge1, &token1)
 	qt.Assert(t, err, qt.ErrorIs, ErrTooManyAttempts)
 
 	// test verified
-	valid, err = stg.Verified(testStrToHex(t, testStorageUser1), testStrToHex(t, testStorageProcess1))
+	valid, err = stg.Verified(testStrToHex(testStorageUser1), testStrToHex(testStorageProcess1))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsTrue)
 
-	valid, err = stg.Verified(testStrToHex(t, testStorageUser2), testStrToHex(t, testStorageProcess2))
+	valid, err = stg.Verified(testStrToHex(testStorageUser2), testStrToHex(testStorageProcess2))
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
@@ -205,13 +205,6 @@ func testStorage(t *testing.T, stg Storage) {
 	users, err = stg.Search("1940")
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, users.Users, qt.HasLen, 1)
-}
-
-func testStrToHex(t *testing.T, payload string) types.HexBytes {
-	h := types.HexBytes{}
-	err := h.FromString(payload)
-	qt.Assert(t, err, qt.IsNil)
-	return h
 }
 
 func testStorageToHex(t *testing.T, user string, pids []string) (types.HexBytes, []types.HexBytes) {

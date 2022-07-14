@@ -38,7 +38,7 @@ func newSmsQueue(ttl, throttle time.Duration, schFnc SendChallengeFunc) *smsQueu
 		response:      make(chan smsQueueResponse, 1),
 		sendChallenge: schFnc,
 		ttl:           ttl,
-		throttle:      DefaultSMSthrottleTime,
+		throttle:      throttle,
 	}
 }
 

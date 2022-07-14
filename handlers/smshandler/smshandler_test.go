@@ -2,88 +2,116 @@ package smshandler
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"sync/atomic"
+	"math/rand"
 	"testing"
 	"time"
 
 	qt "github.com/frankban/quicktest"
+	"github.com/nyaruka/phonenumbers"
 	"github.com/vocdoni/blind-csp/types"
 )
 
 func TestSmsHandler(t *testing.T) {
 	dir := t.TempDir()
-	csvFile := filepath.Join(dir, "import.csv")
-	err := os.WriteFile(csvFile, []byte(CSVFILE), 0644)
-	qt.Check(t, err, qt.IsNil)
-	err = os.Setenv("CSP_IMPORT_FILE", csvFile)
-	qt.Check(t, err, qt.IsNil)
-
-	sh := SmsHandler{SendChallenge: sendChallengeMock}
-	err = sh.Init(dir, "2", "1000", "5") // MaxAttempts:2 CoolDownSeconds:1s Throttle:5ms
+	challenge := newChallengeMock()
+	sh := SmsHandler{SendChallenge: challenge.sendChallenge}
+	err := sh.Init(dir, "2", "200", "5") // MaxAttempts:2 CoolDownSeconds:200ms Throttle:5ms
 	qt.Check(t, err, qt.IsNil)
 
-	msg := types.Message{}
-	msg.AuthData = []string{"6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac"}
-	electionID := types.HexBytes{}
-	err = electionID.FromString("c3095ff57150285cccf880e712e353a16251de6670f7aa1b069e6416cb641f5a")
-	qt.Check(t, err, qt.IsNil)
+	// add the users
+	for _, ud := range usersMockData {
+		err := sh.stg.AddUser(ud.userID, ud.elections, fmt.Sprintf("%d", ud.phone.GetNationalNumber()), "")
+		qt.Check(t, err, qt.IsNil)
+	}
+	t.Log(sh.stg.String())
+
+	// Try first user (only auth step 0)
 
 	// first attempt (should work)
-	resp := sh.Auth(nil, &msg, electionID, "blind", 0)
+	msg := types.Message{}
+	msg.AuthData = []string{usersMockData[0].userID.String()}
+	resp := sh.Auth(nil, &msg, usersMockData[0].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
-	// second attempt (should fail because of cooldown time)
-	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	// attempt (should fail because of cooldown time)
+	resp = sh.Auth(nil, &msg, usersMockData[0].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsFalse)
 
 	// second attempt (should work)
-	time.Sleep(time.Second * 1)
-	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	time.Sleep(time.Millisecond * 200) // cooldown time
+	resp = sh.Auth(nil, &msg, usersMockData[0].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
 	// third attempt (should fail)
-	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	time.Sleep(time.Millisecond * 200) // cooldown time
+	resp = sh.Auth(nil, &msg, usersMockData[0].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsFalse)
 
-	// Try second user
-	msg.AuthData = []string{"bf5b6a9c69a5abee870b3667e92c589ef9c13458be0fc0493b2ba5a9658c690b"}
-	electionID = types.HexBytes{}
-	err = electionID.FromString("7ad9ef89d38a0e55cd8eb6b5f532d34c9ea8d4fe630e0d29247aa94e2e854402")
-	qt.Check(t, err, qt.IsNil)
+	// Try second user with step 1 (solution)
+	msg.AuthData = []string{usersMockData[1].userID.String()}
 
-	// first attempt with wrong solution (should fail)
-	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	// first attempt with wrong solution (should fail) index:0
+	resp = sh.Auth(nil, &msg, usersMockData[1].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
 	msg.AuthToken = resp.AuthToken
 	msg.AuthData = []string{"1234"}
-	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
+	resp = sh.Auth(nil, &msg, usersMockData[1].elections[0], "blind", 1)
 	qt.Check(t, resp.Success, qt.IsFalse)
 
-	// second attempt with right solution (should work)
-	time.Sleep(time.Second * 1)
-	msg.AuthData = []string{"bf5b6a9c69a5abee870b3667e92c589ef9c13458be0fc0493b2ba5a9658c690b"}
-	resp = sh.Auth(nil, &msg, electionID, "blind", 0)
+	// second attempt with right solution (should work) index:1
+	time.Sleep(time.Millisecond * 250) // cooldown time
+	msg.AuthData = []string{usersMockData[1].userID.String()}
+	resp = sh.Auth(nil, &msg, usersMockData[1].elections[0], "blind", 0)
 	qt.Check(t, resp.Success, qt.IsTrue)
 
-	time.Sleep(time.Second) // cooldown time
+	time.Sleep(time.Millisecond * 250)
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
-	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
+	solution := challenge.getSolution(usersMockData[1].phone, 1)
+
+	msg.AuthData = []string{fmt.Sprintf("%d", solution)}
+	resp = sh.Auth(nil, &msg, usersMockData[1].elections[0], "blind", 1)
 	qt.Check(t, resp.Success, qt.IsTrue, qt.Commentf("%s", resp.Response))
 
 	// Try again, it should fail
-	time.Sleep(time.Second) // cooldown time
+	time.Sleep(time.Millisecond * 250)
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
-	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
+	msg.AuthData = []string{fmt.Sprintf("%d", solution)}
+	resp = sh.Auth(nil, &msg, usersMockData[1].elections[0], "blind", 1)
 	qt.Check(t, resp.Success, qt.IsFalse)
 }
 
-// nolint[:lll]
-var CSVFILE = `
-6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac,+34667722111,John,c3095ff57150285cccf880e712e353a16251de6670f7aa1b069e6416cb641f5a
-bf5b6a9c69a5abee870b3667e92c589ef9c13458be0fc0493b2ba5a9658c690b,+34700212841,Mike,7ad9ef89d38a0e55cd8eb6b5f532d34c9ea8d4fe630e0d29247aa94e2e854402
-`
+type usersMock struct {
+	userID    types.HexBytes
+	elections []types.HexBytes
+	phone     *phonenumbers.PhoneNumber
+}
+
+var usersMockData = []usersMock{
+	{
+		userID:    testStrToHex("6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac"),
+		elections: []types.HexBytes{testStrToHex("c3095ff57150285cccf880e712e353a16251de6670f7aa1b069e6416cb641f5a")},
+		phone:     mockPhone(),
+	},
+	{
+		userID:    testStrToHex("bf5b6a9c69a5abee870b3667e92c589ef9c13458be0fc0493b2ba5a9658c690b"),
+		elections: []types.HexBytes{testStrToHex("7ad9ef89d38a0e55cd8eb6b5f532d34c9ea8d4fe630e0d29247aa94e2e854402")},
+		phone:     mockPhone(),
+	},
+}
+
+// mockPhone returns a phonenumber between +34722000000 and +34722999999
+func mockPhone() *phonenumbers.PhoneNumber {
+	mathRandom := rand.New(rand.NewSource(time.Now().UnixNano()))
+	n := 722000000 + mathRandom.Intn(999999)
+	ph, _ := phonenumbers.Parse(fmt.Sprintf("%d", n), "ES")
+	return ph
+}
+
+func testStrToHex(payload string) types.HexBytes {
+	h := types.HexBytes{}
+	if err := h.FromString(payload); err != nil {
+		panic(err)
+	}
+	return h
+}
