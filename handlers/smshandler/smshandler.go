@@ -34,7 +34,7 @@ type SmsHandler struct {
 	stg           Storage
 	smsQueue      *smsQueue
 	mathRandom    *rand.Rand
-	SendChallenge SendChallengeFunc
+	SendChallenge []SendChallengeFunc
 }
 
 // SendChallengeFunc is the function that sends the SMS challenge to a phone number.
@@ -106,9 +106,19 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	if sh.SendChallenge == nil {
 		switch os.Getenv("SMS_PROVIDER") {
 		case "messagebird":
-			sh.SendChallenge = NewMessageBirdSMS().SendChallenge
+			sh.SendChallenge = []SendChallengeFunc{NewMessageBirdSMS().SendChallenge}
+		case "messagebird,twilio":
+			sh.SendChallenge = []SendChallengeFunc{
+				NewMessageBirdSMS().SendChallenge,
+				NewTwilioSMS().SendChallenge,
+			}
+		case "twilio,messagebird":
+			sh.SendChallenge = []SendChallengeFunc{
+				NewTwilioSMS().SendChallenge,
+				NewMessageBirdSMS().SendChallenge,
+			}
 		default:
-			sh.SendChallenge = NewTwilioSMS().SendChallenge
+			sh.SendChallenge = []SendChallengeFunc{NewTwilioSMS().SendChallenge}
 		}
 	}
 

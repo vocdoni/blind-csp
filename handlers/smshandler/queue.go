@@ -28,15 +28,15 @@ type smsQueue struct {
 	queue         *goconcurrentqueue.FIFO
 	ttl           time.Duration
 	throttle      time.Duration
-	sendChallenge SendChallengeFunc
+	sendChallenge []SendChallengeFunc
 	response      chan (challengeData)
 }
 
-func newSmsQueue(ttl, throttle time.Duration, schFnc SendChallengeFunc) *smsQueue {
+func newSmsQueue(ttl, throttle time.Duration, sChFns []SendChallengeFunc) *smsQueue {
 	return &smsQueue{
 		queue:         goconcurrentqueue.NewFIFO(),
 		response:      make(chan challengeData, 1),
-		sendChallenge: schFnc,
+		sendChallenge: sChFns,
 		ttl:           ttl,
 		throttle:      throttle,
 	}
@@ -64,7 +64,10 @@ func (sq *smsQueue) run() {
 			continue
 		}
 		challenge := c.(challengeData)
-		if err := sq.sendChallenge(challenge.phone, challenge.challenge); err != nil {
+		// if multiple providers are defined, use them in round-robin
+		// (try #0 will use first provider, retry #1 second provider, retry #2 first provider again)
+		sendChallenge := sq.sendChallenge[challenge.retries%2]
+		if err := sendChallenge(challenge.phone, challenge.challenge); err != nil {
 			// Fail
 			log.Warnf("%s: failed to send sms: %v", challenge, err)
 			if err := sq.reenqueue(challenge); err != nil {
