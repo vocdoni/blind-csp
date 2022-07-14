@@ -65,20 +65,20 @@ func (sh *SmsHandler) Init(opts ...string) error {
 	// set default sms cooldown time
 	smsCoolDownTime := DefaultSMScoolDownTime
 	if len(opts) > 2 {
-		s, err := strconv.Atoi(opts[2])
+		ms, err := strconv.Atoi(opts[2])
 		if err != nil {
 			return err
 		}
-		smsCoolDownTime = time.Millisecond * time.Duration(s)
+		smsCoolDownTime = time.Millisecond * time.Duration(ms)
 	}
 	// set default sms throttle time
 	smsThrottle := DefaultSMSthrottleTime
 	if len(opts) > 3 {
-		s, err := strconv.Atoi(opts[3])
+		ms, err := strconv.Atoi(opts[3])
 		if err != nil {
 			return err
 		}
-		smsThrottle = time.Millisecond * time.Duration(s)
+		smsThrottle = time.Millisecond * time.Duration(ms)
 	}
 	if smsCoolDownTime < smsThrottle {
 		return fmt.Errorf("sms cooldown time cannot be smaller than sms throttle")
