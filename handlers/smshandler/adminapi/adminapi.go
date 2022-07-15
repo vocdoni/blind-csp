@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,12 +26,13 @@ const respOK = `{"ok":"true"}`
 var storage smshandler.Storage
 
 func main() {
-	var tlsDomain, logLevel, authToken string
+	var tlsDomain, logLevel string
+	var authToken []string
 	var port int
 	flag.StringVar(&tlsDomain, "tlsDomain", "", "domain name for TLS certificate")
 	flag.IntVar(&port, "port", 5001, "port for the API")
 	// nolint[:lll]
-	flag.StringVar(&authToken, "authToken", "", "bearer token for authentication (empty autogenerates)")
+	flag.StringArrayVar(&authToken, "authToken", []string{}, "bearer token for authentication (empty autogenerates)")
 	flag.StringVar(&logLevel, "logLevel", "info",
 		"log level {debug,info,warn,error}")
 	// nolint[:lll]
@@ -44,8 +46,8 @@ func main() {
 	if logLevel == "info" && os.Getenv("ADMINAPI_LOGLEVEL") != "" {
 		logLevel = os.Getenv("ADMINAPI_LOGLEVEL")
 	}
-	if authToken == "" {
-		authToken = os.Getenv("ADMINAPI_AUTHTOKEN")
+	if len(authToken) == 0 {
+		authToken = strings.Split(os.Getenv("ADMINAPI_AUTHTOKEN"), ",")
 	}
 	var err error
 	if port == 5001 && os.Getenv("ADMINAPI_PORT") != "" {
@@ -70,12 +72,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	api.EnableVerboseAuthLog()
 
 	// Set bearer authentication
-	if authToken == "" {
-		authToken = uuid.New().String()
+	if len(authToken) == 0 || authToken[0] == "" {
+		authToken = []string{uuid.New().String()}
 	}
-	api.AddAuthToken(authToken, 1000000)
+	for _, at := range authToken {
+		api.AddAuthToken(at, 100000000)
+	}
 	log.Infof("using bearer authentication token %s", authToken)
 
 	storage = &smshandler.MongoStorage{}
