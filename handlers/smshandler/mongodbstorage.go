@@ -327,9 +327,13 @@ func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	result := ms.tokenIndex.FindOne(ctx, bson.M{"_id": token})
+	if result.Err() != nil {
+		log.Warnf("cannot fetch auth token: %v", result.Err())
+		return ErrInvalidAuthToken
+	}
 	var atIndex AuthTokenIndex
 	if err := result.Decode(&atIndex); err != nil {
-		log.Warnf("cannot fetch auth token: %v", err)
+		log.Warnf("cannot decode auth token: %v", err)
 		return ErrInvalidAuthToken
 	}
 
