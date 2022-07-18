@@ -4,8 +4,8 @@ go 1.15
 
 require (
 	github.com/DataDog/zstd v1.5.2 // indirect
-	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20220421060538-07077d895da5
+	github.com/btcsuite/btcd v0.22.1 // indirect
 	github.com/cockroachdb/errors v1.9.0 // indirect
 	github.com/cockroachdb/pebble v0.0.0-20220708173837-d3484a60444e // indirect
 	github.com/containerd/containerd v1.6.6 // indirect
@@ -32,7 +32,6 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/strikesecurity/strikememongo v0.2.4 // direct
 	github.com/subosito/gotenv v1.4.0 // indirect
-	github.com/tendermint/tendermint v0.34.15 // indirect
 	github.com/twilio/twilio-go v0.26.0
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.mongodb.org/mongo-driver v1.10.0
@@ -43,6 +42,5 @@ require (
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e // indirect
-	google.golang.org/grpc v1.46.2 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
 )
