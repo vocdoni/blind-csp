@@ -179,11 +179,21 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Deprecated, should be removed
 	if err := api.RegisterMethod(
 		"/setPhone/{userid}/{phone}",
 		"GET",
 		bearerstdapi.MethodAccessTypePrivate,
 		setPhone,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := api.RegisterMethod(
+		"/setUserData/{userid}",
+		"POST",
+		bearerstdapi.MethodAccessTypePrivate,
+		setUserData,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -258,7 +268,7 @@ func user(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) 
 	return ctx.Send(resp, bearerstdapi.HTTPstatusCodeOK)
 }
 
-type newUserData struct {
+type userData struct {
 	Phone string `json:"phone"`
 	Extra string `json:"extra"`
 }
@@ -271,7 +281,7 @@ func newUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContex
 	if storage.Exists(userID) {
 		return fmt.Errorf("user already exists")
 	}
-	newUser := newUserData{}
+	newUser := userData{}
 	if err := json.Unmarshal(msg.Data, &newUser); err != nil {
 		return err
 	}
@@ -340,6 +350,35 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	}
 	election.Consumed = consumed
 	user.Elections[electionID.String()] = election // Redundant?
+	if err := storage.UpdateUser(user); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func setUserData(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	var userID types.HexBytes
+	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
+		return err
+	}
+	user, err := storage.User(userID)
+	if err != nil {
+		return err
+	}
+	userData := userData{}
+	if err := json.Unmarshal(msg.Data, &userData); err != nil {
+		return err
+	}
+	if userData.Phone != "" {
+		p, err := phonenumbers.Parse(userData.Phone, smshandler.DefaultPhoneCountry)
+		if err != nil {
+			return err
+		}
+		user.Phone = p
+	}
+	if userData.Extra != "" {
+		user.ExtraData = userData.Extra
+	}
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}

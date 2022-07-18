@@ -384,12 +384,13 @@ curl http://127.0.0.1:5001/smsapi/import -d @dump.json
 }
 ```
 
-### 12. Set phone
-A user phone can be changed by using the following call.
+### 12. Set user data
+Modifies the existing user fields `phone` and `extra` by using the following POST call.
+
 
 - Request
 ```bash
-curl http://127.0.0.1:5001/smsapi/setPhone/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac/+34700800900
+curl http://127.0.0.1:5001/smsapi/setUserData/6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac -d '{"phone":"+34722847182", "extra":"John Smith"}'
 ```
 - Response OK
 ```json
