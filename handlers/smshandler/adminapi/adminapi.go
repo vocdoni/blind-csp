@@ -179,6 +179,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := api.RegisterMethod(
+		"/delElection/{userid}/{electionid}",
+		"GET",
+		bearerstdapi.MethodAccessTypePrivate,
+		delElection,
+	); err != nil {
+		log.Fatal(err)
+	}
+
 	// Deprecated, should be removed
 	if err := api.RegisterMethod(
 		"/setPhone/{userid}/{phone}",
@@ -311,6 +320,25 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 		user.Elections = make(map[string]smshandler.UserElection, 10)
 	}
 	user.Elections[electionID.String()] = election
+	if err := storage.UpdateUser(user); err != nil {
+		return err
+	}
+	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+}
+
+func delElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+	var userID, electionID types.HexBytes
+	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
+		return err
+	}
+	if err := electionID.FromString(ctx.URLParam("electionid")); err != nil {
+		return err
+	}
+	user, err := storage.User(userID)
+	if err != nil {
+		return err
+	}
+	delete(user.Elections, electionID.String())
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}

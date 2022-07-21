@@ -286,7 +286,7 @@ curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1
 }
 ```
 
-### 8. Add an election
+### 8. Add and delete elections
 Adds a new election for a given user.
 
 - Request
@@ -328,6 +328,27 @@ curl http://127.0.0.1:5001/smsapi/user/ff29acb484cc721c102715295af1698ff90e90cb1
  }
 }
 ```
+
+Delete an election for a user.
+
+- Request
+```bash
+curl http://127.0.0.1:5001/smsapi/delElection/ff29acb484cc721c102715295af1698ff90e90cb1b70f4d05aaa19674dbddce4/3333333333333333333333333333333333333333333333333333333333333333
+```
+- Response OK
+```json
+{
+    "ok": "true"
+}
+```
+- Response Error
+```json
+{
+    "error": "error goes here"
+}
+```
+
+
 ### 9. Search term on extraData field
 
 The `extraData` field can store any arbitrary data regarding the user (full name, national ID, birth date, etc.).
