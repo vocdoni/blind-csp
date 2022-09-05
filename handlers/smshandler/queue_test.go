@@ -22,13 +22,17 @@ func TestSmsQueue(t *testing.T) {
 	log.Init("debug", "stderr")
 	rand.Seed(time.Now().UnixNano())
 	smsQueue := newSmsQueue(
-		1*time.Second, // smsCoolDownTime
-		sendChallengeOnceIn10,
+		3*time.Second,      // smsCoolDownTime
+		5*time.Millisecond, // throttle
+		[]SendChallengeFunc{
+			mockFailFromTwilio,
+			mockFailFromMessageBird,
+		},
 	)
 	go smsQueue.run()
 	var electionID types.HexBytes = []byte{0xee}
 	for i := 0; i < testIterations; i++ {
-		err := smsQueue.add(mockUser(i), electionID, mockPhone(i), 1234)
+		err := smsQueue.add(mockUser(i), electionID, mockIncrementalPhone(i), 1234)
 		qt.Check(t, err, qt.IsNil)
 		// time.Sleep(time.Second) // wait a bit between each mock sms attempt
 	}
@@ -38,7 +42,7 @@ func TestSmsQueue(t *testing.T) {
 
 // smsQueueController was copy-pasted from smshandler.go
 // but instead of leaving it running as a goroutine, wrap in a loop of known iterations
-func smsQueueController(ch <-chan (smsQueueResponse)) {
+func smsQueueController(ch <-chan (challengeData)) {
 	for i := 0; i < testIterations; i++ {
 		r := <-ch
 		if r.success {
@@ -57,11 +61,11 @@ func mockUser(i int) types.HexBytes {
 
 // randomPhone returns a random phonenumber between +34722000000 and +34722999999
 func randomPhone() *phonenumbers.PhoneNumber {
-	return mockPhone(rand.Intn(999999))
+	return mockIncrementalPhone(rand.Intn(999999))
 }
 
 // mockPhone returns a phonenumber between +34722000000 and +34722999999
-func mockPhone(i int) *phonenumbers.PhoneNumber {
+func mockIncrementalPhone(i int) *phonenumbers.PhoneNumber {
 	n := 722000000 + i
 	ph, _ := phonenumbers.Parse(fmt.Sprintf("%d", n), "ES")
 	return ph
@@ -75,6 +79,12 @@ func sendChallengeOnceIn(i int) error {
 	return fmt.Errorf("mock error while trying to send sms")
 }
 
+func mockFailFromMessageBird(phone *phonenumbers.PhoneNumber, challenge int) error {
+	return fmt.Errorf("mock error from MessageBird")
+}
+func mockFailFromTwilio(phone *phonenumbers.PhoneNumber, challenge int) error {
+	return fmt.Errorf("mock error from Twilio")
+}
 func sendChallengeOnceIn2(phone *phonenumbers.PhoneNumber, challenge int) error {
 	return sendChallengeOnceIn(2)
 }
