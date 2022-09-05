@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestSmsHandler(t *testing.T) {
 	sh := SmsHandler{SendChallenge: sendChallengeMock}
 	err = sh.Init(dir, "2", "1") // MaxAttempts:2 CoolDownSeconds:1
 	qt.Check(t, err, qt.IsNil)
-	sh.SmsThrottle = time.Nanosecond * 1
+	sh.smsQueue.setThrottle(time.Nanosecond)
 
 	msg := types.Message{}
 	msg.AuthData = []string{"6c0b6e1020b6354c714fc65aa198eb95e663f038e32026671c58677e0e0f8eac"}
@@ -70,14 +71,14 @@ func TestSmsHandler(t *testing.T) {
 
 	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", challengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
 	qt.Check(t, resp.Success, qt.IsTrue, qt.Commentf("%s", resp.Response))
 
 	// Try again, it should fail
 	time.Sleep(time.Second) // cooldown time
 	msg.AuthToken = resp.AuthToken
-	msg.AuthData = []string{fmt.Sprintf("%d", challengeSolutionMock)}
+	msg.AuthData = []string{fmt.Sprintf("%d", atomic.LoadInt32(&challengeSolutionMock))}
 	resp = sh.Auth(nil, &msg, electionID, "blind", 1)
 	qt.Check(t, resp.Success, qt.IsFalse)
 }

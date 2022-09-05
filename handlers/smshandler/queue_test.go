@@ -29,6 +29,7 @@ func TestSmsQueue(t *testing.T) {
 			mockFailFromMessageBird,
 		},
 	)
+	smsQueue.setThrottle(time.Millisecond)
 	go smsQueue.run()
 	var electionID types.HexBytes = []byte{0xee}
 	for i := 0; i < testIterations; i++ {
@@ -37,7 +38,6 @@ func TestSmsQueue(t *testing.T) {
 		// time.Sleep(time.Second) // wait a bit between each mock sms attempt
 	}
 	smsQueueController(smsQueue.response)
-	//panic("intended, to force output logging") // hack to see the output in github logs
 }
 
 // smsQueueController was copy-pasted from smshandler.go
@@ -50,7 +50,6 @@ func smsQueueController(ch <-chan (challengeData)) {
 		} else {
 			log.Infof("challenge sending failed for %s", r.userID)
 		}
-		time.Sleep(smsThrottleTime)
 	}
 }
 

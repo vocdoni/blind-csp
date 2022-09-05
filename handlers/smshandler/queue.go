@@ -15,12 +15,13 @@ type challengeData struct {
 	phone      *phonenumbers.PhoneNumber
 	challenge  int
 	startTime  time.Time
-	tries      int
+	attempts   int
 }
 
 type smsQueue struct {
 	queue         *goconcurrentqueue.FIFO
 	ttl           time.Duration
+	throttle      time.Duration
 	sendChallenge SendChallengeFunc
 	response      chan (smsQueueResponse)
 }
@@ -32,16 +33,20 @@ type smsQueueResponse struct {
 }
 
 func newSmsQueue(ttl time.Duration, schFnc SendChallengeFunc) *smsQueue {
-	var sq smsQueue
-	sq.queue = goconcurrentqueue.NewFIFO()
-	sq.response = make(chan smsQueueResponse, 10)
-	sq.sendChallenge = schFnc
-	sq.ttl = ttl
-	return &sq
+	return &smsQueue{
+		queue:         goconcurrentqueue.NewFIFO(),
+		response:      make(chan smsQueueResponse, 1),
+		sendChallenge: schFnc,
+		ttl:           ttl,
+	}
+}
+
+func (sq *smsQueue) setThrottle(throttle time.Duration) {
+	sq.throttle = throttle
 }
 
 func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.PhoneNumber, challenge int) error {
-	log.Debugf("enqueued new sms with challenge for phone %d", *phone.NationalNumber)
+	log.Debugf("enqueued new sms with challenge for phone %d", phone.GetNationalNumber())
 	return sq.queue.Enqueue(
 		challengeData{
 			userID:     userID,
@@ -49,13 +54,14 @@ func (sq *smsQueue) add(userID, electionID types.HexBytes, phone *phonenumbers.P
 			phone:      phone,
 			challenge:  challenge,
 			startTime:  time.Now(),
-			tries:      0,
+			attempts:   0,
 		},
 	)
 }
 
 func (sq *smsQueue) run() {
 	for {
+		time.Sleep(sq.throttle)
 		c, err := sq.queue.DequeueOrWaitForNextElement()
 		if err != nil {
 			log.Warn(err)
@@ -63,11 +69,12 @@ func (sq *smsQueue) run() {
 		}
 		challenge := c.(challengeData)
 		if err := sq.sendChallenge(challenge.phone, challenge.challenge); err != nil {
-			log.Warnf("failed to send sms for %d: %v", *challenge.phone.NationalNumber, err)
+			// Fail
+			log.Warnf("failed to send sms for %d: %v", challenge.phone.GetNationalNumber(), err)
 
 			// check if we have to enqueue it again or not
-			if challenge.tries >= queueSMSmaxTries || time.Now().After(challenge.startTime.Add(sq.ttl)) {
-				log.Warnf("TTL or max tries reached for %d, removing from sms queue", *challenge.phone.NationalNumber)
+			if challenge.attempts >= queueSMSmaxAttempts || time.Now().After(challenge.startTime.Add(sq.ttl)) {
+				log.Warnf("TTL or max attempts reached for %d, removing from sms queue", challenge.phone.GetNationalNumber())
 				// Send a signal (channel) to let the caller know we are removing this element
 				sq.response <- smsQueueResponse{
 					userID:     challenge.userID,
@@ -77,15 +84,16 @@ func (sq *smsQueue) run() {
 				continue
 			}
 			// enqueue it again
-			challenge.tries++
+			challenge.attempts++
 			if err := sq.queue.Enqueue(challenge); err != nil {
-				log.Errorf("cannot enqueue sms for %d: %v", *challenge.phone.NationalNumber, err)
-				continue
+				log.Errorf("cannot enqueue sms for %d: %v", challenge.phone.GetNationalNumber(), err)
+			} else {
+				log.Infof("re-enqueued sms for %d, attempt #%d", challenge.phone.GetNationalNumber(), challenge.attempts)
 			}
-			log.Infof("re-enqueued sms for %d, attempt #%d", *challenge.phone.NationalNumber, challenge.tries)
 			continue
 		}
-		log.Debugf("sms with challenge for %d successfully sent, sending channel signal", *challenge.phone.NationalNumber)
+		// Success
+		log.Debugf("sms with challenge for %d successfully sent, sending channel signal", challenge.phone.GetNationalNumber())
 		// Send a signal (channel) to let the caller know we succeed
 		sq.response <- smsQueueResponse{
 			userID:     challenge.userID,

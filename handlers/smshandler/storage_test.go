@@ -75,7 +75,7 @@ func testStorage(t *testing.T, stg Storage) {
 	for user, data := range testStorageUsers {
 		t.Logf("adding user %s", user)
 		uh, ph := testStorageToHex(t, user, data.elections)
-		err := stg.AddUser(uh, ph, data.phone, "")
+		err := stg.AddUser(uh, ph, data.phone, data.extra)
 		qt.Assert(t, err, qt.IsNil)
 	}
 	t.Logf(stg.String())
@@ -214,6 +214,18 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, valid, qt.IsFalse)
 
 	t.Logf(stg.String())
+
+	// test search term
+	users, err = stg.Search("Smith")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 2)
+	t.Logf("%s (%d)", users.Users, len(users.Users))
+	users, err = stg.Search("Rocky")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 0)
+	users, err = stg.Search("1940")
+	qt.Assert(t, err, qt.IsNil)
+	qt.Assert(t, users.Users, qt.HasLen, 1)
 }
 
 func testStrToHex(t *testing.T, payload string) types.HexBytes {
@@ -243,18 +255,30 @@ var (
 	testStorageProcess2      = "e1fed0c1bf0bf797cedfa30e1d92ecf7a9047b53043ea8a242388c276855ccaf"
 	testStorageUser1         = "d763cda19aa52c2ff6e13a02989413e47abbee356bf0a8a21a73fc9af48d6ed2"
 	testStoragePhone1        = "+34655111222"
+	testStorageExtra1        = "John Smith 1977"
 	testStorageUser2         = "316008c51db028fa544dbf68a4c70811728b602fee46a5d0c8dc0f6300a3c474"
 	testStoragePhone2        = "677888999"
+	testStorageExtra2        = "John Lewis 1940"
 	testStorageUser3         = "0467aa5a72daf0286ad89c5220f84a7b2133fbd51ab5d3a85a049a645f54f32f"
 	testStoragePhone3        = "+1-541-754-3010"
+	testStorageExtra3        = "Alice Smith 1971"
 	testStorageUserNonExists = "22fa4de0788c38755239589dfa18a8d7adbe8bb96425c4641389008470fa0377"
 
 	testStorageUsers = map[string]testUserData{
-		testStorageUser1: {elections: []string{testStorageProcess1}, phone: testStoragePhone1},
-		testStorageUser2: {elections: []string{testStorageProcess2}, phone: testStoragePhone2},
+		testStorageUser1: {
+			elections: []string{testStorageProcess1},
+			phone:     testStoragePhone1,
+			extra:     testStorageExtra1,
+		},
+		testStorageUser2: {
+			elections: []string{testStorageProcess2},
+			phone:     testStoragePhone2,
+			extra:     testStorageExtra2,
+		},
 		testStorageUser3: {
 			elections: []string{testStorageProcess1, testStorageProcess2},
 			phone:     testStoragePhone3,
+			extra:     testStorageExtra3,
 		},
 	}
 )
@@ -262,4 +286,5 @@ var (
 type testUserData struct {
 	elections []string
 	phone     string
+	extra     string
 }
