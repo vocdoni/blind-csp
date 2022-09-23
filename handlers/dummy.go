@@ -25,10 +25,12 @@ func (dh *DummyHandler) Name() string {
 // Info returns the handler options and required auth steps.
 func (dh *DummyHandler) Info() *types.Message {
 	return &types.Message{
-		Title:     "dummy handler",
-		AuthType:  "auth",
-		SignType:  types.AllSignatures,
-		AuthSteps: []*types.AuthField{},
+		Title:    "dummy handler",
+		AuthType: "auth",
+		SignType: types.AllSignatures,
+		AuthSteps: []*types.AuthField{
+			{Title: "Name", Type: "text"},
+		},
 	}
 }
 
@@ -45,7 +47,11 @@ func (dh *DummyHandler) Auth(r *http.Request,
 	log.Infof(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	log.Infof("new user registered with ip %s", ipaddr)
-	return types.AuthResponse{Response: []string{fmt.Sprintf("welcome to process %x!", pid)}}
+	return types.AuthResponse{
+		Success:   true,
+		Response:  []string{fmt.Sprintf("welcome to process %s!", pid)},
+		AuthToken: nil, // make authToken nil explicit, so the auth process is considered ended
+	}
 }
 
 // RequireCertificate must return true if the auth handler requires some kind of client

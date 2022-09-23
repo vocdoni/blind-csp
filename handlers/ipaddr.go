@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -70,7 +71,10 @@ func (ih *IpaddrHandler) Auth(r *http.Request,
 	}
 	ih.addKey([]byte(ipaddr), nil)
 	log.Infof("new user registered with ip %s", ipaddr)
-	return types.AuthResponse{}
+	return types.AuthResponse{
+		Success:  true,
+		Response: []string{fmt.Sprintf("welcome %s", ipaddr)},
+	}
 }
 
 // Info returns the handler options and required auth steps.
