@@ -4,16 +4,26 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Install Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: 1.17.x
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
-          $(go env GOPATH)/bin/golangci-lint run --timeout=5m -c .golangci.yml
+          cache: true
+      - name: Run golangci-lint
+        # run: |
+        #   curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
+        #   $(go env GOPATH)/bin/golangci-lint run --timeout=5m -c .golangci.yml
+        uses: golangci/golangci-lint-action@v3
+        ### golangci-lint will take much time if loading multiple linters in .golangci.yml
+        with:
+          version: v1.30.0
+          args: --timeout 3m --verbose
+          skip-cache: false
+          skip-pkg-cache: false
+          skip-build-cache: false
+          only-new-issues: true
 
   test:
     # matrix strategy from: https://github.com/mvdan/github-actions-golang/blob/master/.github/workflows/test.yml
@@ -23,13 +33,14 @@ jobs:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Install Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: go test
+          cache: true
+      - name: Run go test
         run: go test -timeout=10m -race ./...
 
   docker-release:
@@ -38,35 +49,33 @@ jobs:
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/stage' ||  startsWith(github.ref, 'refs/heads/release')
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
-      - uses: docker/setup-buildx-action@v1
+        uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v2
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.CR_PAT }}
-      - name: Get short commit sha
+      - name: Get short commit sha and branch name
         id: vars
-        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
-      - name: Get short branch name
-        id: var
-        shell: bash
-        # Grab the short branch name, convert slashes to dashes
         run: |
-          echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-' )"
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "branch_name=$(echo ${GITHUB_REF#refs/heads/} | tr '/' '-' )" >> $GITHUB_OUTPUT
       - name: Push to Docker Hub and ghcr.io
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            vocdoni/${{ github.event.repository.name }}:latest, vocdoni/${{ github.event.repository.name }}:${{ steps.var.outputs.branch }},
-            ghcr.io/vocdoni/${{ github.event.repository.name }}:latest,ghcr.io/vocdoni/${{ github.event.repository.name }}:${{ steps.var.outputs.branch }}
+            vocdoni/${{ github.event.repository.name }}:latest, vocdoni/${{ github.event.repository.name }}:${{ steps.vars.outputs.branch_name }},
+            ghcr.io/vocdoni/${{ github.event.repository.name }}:latest, ghcr.io/vocdoni/${{ github.event.repository.name }}:${{ steps.vars.outputs.branch_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
