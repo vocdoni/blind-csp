@@ -87,7 +87,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	)
 }
 
-// https://server/v1/auth/processes/<processId>/<signType>/auth/<step>
+// https://server/v1/auth/elections/<processId>/<signType>/auth/<step>
 
 // signatureReq is the signature request handler.
 // It executes the AuthCallback function to allow or deny the request to the client.
@@ -142,7 +142,7 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
-// https://server/v1/auth/processes/<processId>/<signType>/sign
+// https://server/v1/auth/elections/<processId>/<signType>/sign
 
 // signature is the performing signature handler.
 // If the token is valid and exist in cache, will perform a signature over the Hash
@@ -190,7 +190,7 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
 }
 
-// https://server/v1/auth/processes/<processId>/sharedkey
+// https://server/v1/auth/elections/<processId>/sharedkey
 
 // sharedKeyReq is the shared key request handler.
 // It executes the AuthCallback function to allow or deny the request to the client.
