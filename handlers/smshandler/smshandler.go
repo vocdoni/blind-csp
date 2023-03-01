@@ -249,7 +249,8 @@ func (sh *SmsHandler) Indexer(userID types.HexBytes) []types.Election {
 
 // Auth is the handler method for managing the simple math authentication challenge.
 func (sh *SmsHandler) Auth(r *http.Request, c *types.Message,
-	electionID types.HexBytes, signType string, step int) types.AuthResponse {
+	electionID types.HexBytes, signType string, step int,
+) types.AuthResponse {
 	if signType != types.SignatureTypeBlind {
 		return types.AuthResponse{Response: []string{"incorrect signature type, only blind supported"}}
 	}

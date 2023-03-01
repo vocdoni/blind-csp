@@ -121,7 +121,8 @@ func (ih *RsaHandler) Indexer(userID types.HexBytes) []types.Election {
 
 // Auth is the handler for the rsa handler
 func (rh *RsaHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, st string, step int) types.AuthResponse {
+	ca *types.Message, pid types.HexBytes, st string, step int,
+) types.AuthResponse {
 	authData, err := parseRsaAuthData(ca.AuthData)
 	if err != nil {
 		log.Warn(err)

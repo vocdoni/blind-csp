@@ -52,7 +52,8 @@ func NewSaltedKey(privKey string) (*SaltedKey, error) {
 // SignECDSA returns the signature payload of message (which will be hashed)
 // using the provided Salt.
 func (sk *SaltedKey) SignECDSA(salt [SaltSize]byte,
-	msg []byte) ([]byte, error) {
+	msg []byte,
+) ([]byte, error) {
 	esk := new(vocdonicrypto.SignKeys)
 	if err := esk.AddHexKey(fmt.Sprintf("%x", sk.rootKey.Bytes())); err != nil {
 		return nil, fmt.Errorf("cannot sign ECDSA salted: %w", err)
@@ -68,7 +69,8 @@ func (sk *SaltedKey) SignECDSA(salt [SaltSize]byte,
 // SignBlind returns the signature payload of a blinded message using the provided Salt.
 // The Secretk number needs to be also provided.
 func (sk *SaltedKey) SignBlind(salt [SaltSize]byte, msgBlinded []byte,
-	secretK *big.Int) ([]byte, error) {
+	secretK *big.Int,
+) ([]byte, error) {
 	if secretK == nil {
 		return nil, fmt.Errorf("secretK is nil")
 	}
@@ -100,7 +102,8 @@ func (sk *SaltedKey) ECDSAPubKey() (*ecdsa.PublicKey, error) {
 
 // SaltBlindPubKey returns the salted blind public key of pubKey applying the salt.
 func SaltBlindPubKey(pubKey *blind.PublicKey,
-	salt [saltedkey.SaltSize]byte) (*blind.PublicKey, error) {
+	salt [saltedkey.SaltSize]byte,
+) (*blind.PublicKey, error) {
 	if pubKey == nil {
 		return nil, fmt.Errorf("public key is nil")
 	}

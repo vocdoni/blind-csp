@@ -139,7 +139,8 @@ func (ms *MongoStorage) Users() (*Users, error) {
 }
 
 func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
-	phone, extra string) error {
+	phone, extra string,
+) error {
 	phoneNum, err := phonenumbers.Parse(phone, DefaultPhoneCountry)
 	if err != nil {
 		return err
@@ -147,11 +148,6 @@ func (ms *MongoStorage) AddUser(userID types.HexBytes, processIDs []types.HexByt
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
 
-	maxAttempts := ms.maxSmsAttempts * len(processIDs)
-	// nolint[:ineffassign]
-	if maxAttempts == 0 {
-		maxAttempts = ms.maxSmsAttempts
-	}
 	user := UserData{
 		UserID:    userID,
 		ExtraData: extra,
@@ -212,7 +208,8 @@ func (ms *MongoStorage) UpdateUser(udata *UserData) error {
 }
 
 func (ms *MongoStorage) BelongsToElection(userID types.HexBytes,
-	electionID types.HexBytes) (bool, error) {
+	electionID types.HexBytes,
+) (bool, error) {
 	ms.keysLock.RLock()
 	defer ms.keysLock.RUnlock()
 	user, err := ms.getUserData(userID)
@@ -247,7 +244,8 @@ func (ms *MongoStorage) SetAttempts(userID, electionID types.HexBytes, delta int
 }
 
 func (ms *MongoStorage) NewAttempt(userID, electionID types.HexBytes,
-	challenge int, token *uuid.UUID) (*phonenumbers.PhoneNumber, error) {
+	challenge int, token *uuid.UUID,
+) (*phonenumbers.PhoneNumber, error) {
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
 
@@ -319,7 +317,8 @@ func (ms *MongoStorage) Verified(userID, electionID types.HexBytes) (bool, error
 }
 
 func (ms *MongoStorage) VerifyChallenge(electionID types.HexBytes,
-	token *uuid.UUID, solution int) error {
+	token *uuid.UUID, solution int,
+) error {
 	ms.keysLock.Lock()
 	defer ms.keysLock.Unlock()
 

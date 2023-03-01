@@ -62,7 +62,8 @@ func key2userID(key []byte) (u types.HexBytes) {
 }
 
 func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexBytes,
-	phone, extra string) error {
+	phone, extra string,
+) error {
 	phoneNum, err := phonenumbers.Parse(phone, DefaultPhoneCountry)
 	if err != nil {
 		return err
@@ -71,11 +72,11 @@ func (js *JSONstorage) AddUser(userID types.HexBytes, processIDs []types.HexByte
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
 	defer tx.Discard()
-	maxAttempts := js.maxSmsAttempts * len(processIDs)
-	if maxAttempts == 0 {
-		// nolint[:gosimple]
-		maxAttempts = js.maxSmsAttempts
-	}
+	// maxAttempts := js.maxSmsAttempts * len(processIDs)
+	// if maxAttempts == 0 {
+	// 	// nolint[:gosimple]
+	// 	maxAttempts = js.maxSmsAttempts
+	// }
 	user := UserData{
 		ExtraData: extra,
 		Phone:     phoneNum,
@@ -136,7 +137,8 @@ func (js *JSONstorage) UpdateUser(udata *UserData) error {
 }
 
 func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
-	electionID types.HexBytes) (bool, error) {
+	electionID types.HexBytes,
+) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
 	tx := js.kv.ReadTx()
@@ -183,7 +185,8 @@ func (js *JSONstorage) SetAttempts(userID, electionID types.HexBytes, delta int)
 }
 
 func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
-	challenge int, token *uuid.UUID) (*phonenumbers.PhoneNumber, error) {
+	challenge int, token *uuid.UUID,
+) (*phonenumbers.PhoneNumber, error) {
 	js.keysLock.Lock()
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()
@@ -262,7 +265,8 @@ func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error)
 }
 
 func (js *JSONstorage) VerifyChallenge(electionID types.HexBytes,
-	token *uuid.UUID, solution int) error {
+	token *uuid.UUID, solution int,
+) error {
 	js.keysLock.Lock()
 	defer js.keysLock.Unlock()
 	tx := js.kv.WriteTx()

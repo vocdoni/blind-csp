@@ -3,7 +3,7 @@ package idcathandler
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"path/filepath"
 	"regexp"
@@ -152,9 +152,9 @@ func (ih *IDcatHandler) listHTTPServer(host string) {
 
 // Init initializes the IDcat handler.
 // It takes two string arguments:
-//  - dataDir: where to store the persistent database
-//  - httpListHost: if specified, a http server will be started to list the
-//    db content in csv format. Example: "127.0.0.1:7654"
+//   - dataDir: where to store the persistent database
+//   - httpListHost: if specified, a http server will be started to list the
+//     db content in csv format. Example: "127.0.0.1:7654"
 func (ih *IDcatHandler) Init(opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("dataDir is not specified")
@@ -216,7 +216,7 @@ func (ih *IDcatHandler) getCAcertificate(url string) ([]byte, error) {
 			panic("error closing HTTP body request on getCAcertificate")
 		}
 	}()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // updateCrlDaemon is a blocking routine that updates the CRL list
@@ -266,7 +266,8 @@ func (ih *IDcatHandler) CertificateCheck(subject []byte) bool {
 // Auth handler checks for a valid idCat certificate and stores a hash with the
 // certificate content in order to avoid future auth requests from the same identity.
 func (ih *IDcatHandler) Auth(r *http.Request,
-	ca *types.Message, pid types.HexBytes, st string, step int) types.AuthResponse {
+	ca *types.Message, pid types.HexBytes, st string, step int,
+) types.AuthResponse {
 	if st != types.SignatureTypeBlind {
 		return types.AuthResponse{Response: []string{"only blind signature is allowed"}}
 	}

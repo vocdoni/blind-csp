@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"go.vocdoni.io/dvote/httprouter/bearerstdapi"
+	"go.vocdoni.io/dvote/httprouter/apirest"
 	"go.vocdoni.io/dvote/log"
 
 	"github.com/google/uuid"
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	// Create the Bearer API attached to the router
-	api, err := bearerstdapi.NewBearerStandardAPI(&router, "/smsapi")
+	api, err := apirest.NewAPI(&router, "/smsapi")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/ping",
 		"GET",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		ping,
 	); err != nil {
 		log.Fatal(err)
@@ -101,7 +101,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/dump",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		dump,
 	); err != nil {
 		log.Fatal(err)
@@ -110,7 +110,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/users",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		users,
 	); err != nil {
 		log.Fatal(err)
@@ -119,7 +119,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/user/{userid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		user,
 	); err != nil {
 		log.Fatal(err)
@@ -128,7 +128,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/addAttempt/{userid}/{electionid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		addAttempt,
 	); err != nil {
 		log.Fatal(err)
@@ -137,7 +137,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/setConsumed/{userid}/{electionid}/{consumed}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		setConsumed,
 	); err != nil {
 		log.Fatal(err)
@@ -146,7 +146,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/cloneUser/{olduserid}/{newuserid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		cloneUser,
 	); err != nil {
 		log.Fatal(err)
@@ -155,7 +155,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/delUser/{userid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		delUser,
 	); err != nil {
 		log.Fatal(err)
@@ -164,7 +164,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/newUser/{userid}",
 		"POST",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		newUser,
 	); err != nil {
 		log.Fatal(err)
@@ -173,7 +173,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/addElection/{userid}/{electionid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		addElection,
 	); err != nil {
 		log.Fatal(err)
@@ -182,7 +182,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/delElection/{userid}/{electionid}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		delElection,
 	); err != nil {
 		log.Fatal(err)
@@ -192,7 +192,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/setPhone/{userid}/{phone}",
 		"GET",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		setPhone,
 	); err != nil {
 		log.Fatal(err)
@@ -201,7 +201,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/setUserData/{userid}",
 		"POST",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		setUserData,
 	); err != nil {
 		log.Fatal(err)
@@ -210,7 +210,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/search",
 		"POST",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		search,
 	); err != nil {
 		log.Fatal(err)
@@ -219,7 +219,7 @@ func main() {
 	if err := api.RegisterMethod(
 		"/import",
 		"POST",
-		bearerstdapi.MethodAccessTypePrivate,
+		apirest.MethodAccessTypePrivate,
 		importDump,
 	); err != nil {
 		log.Fatal(err)
@@ -234,22 +234,22 @@ func main() {
 }
 
 // ping is a simple health check handler.
-func ping(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
-	return ctx.Send([]byte("."), bearerstdapi.HTTPstatusCodeOK)
+func ping(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
+	return ctx.Send([]byte("."), apirest.HTTPstatusOK)
 }
 
-func dump(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
-	return ctx.Send([]byte(storage.String()), bearerstdapi.HTTPstatusCodeOK)
+func dump(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
+	return ctx.Send([]byte(storage.String()), apirest.HTTPstatusOK)
 }
 
-func importDump(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func importDump(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	if err := storage.Import(msg.Data); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func users(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func users(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	users, err := storage.Users()
 	if err != nil {
 		return err
@@ -258,10 +258,10 @@ func users(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext)
 	if err != nil {
 		return err
 	}
-	return ctx.Send(resp, bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp, apirest.HTTPstatusOK)
 }
 
-func user(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func user(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -274,7 +274,7 @@ func user(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) 
 	if err != nil {
 		return err
 	}
-	return ctx.Send(resp, bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp, apirest.HTTPstatusOK)
 }
 
 type userData struct {
@@ -282,7 +282,7 @@ type userData struct {
 	Extra string `json:"extra"`
 }
 
-func newUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func newUser(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -297,10 +297,10 @@ func newUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContex
 	if err := storage.AddUser(userID, nil, newUser.Phone, newUser.Extra); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func addElection(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID, electionID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -323,10 +323,10 @@ func addElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func delElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func delElection(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID, electionID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -342,10 +342,10 @@ func delElection(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func addAttempt(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID, election types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -356,10 +356,10 @@ func addAttempt(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCon
 	if err := storage.SetAttempts(userID, election, 1); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func setConsumed(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID, electionID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -381,10 +381,10 @@ func setConsumed(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func setUserData(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func setUserData(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -410,10 +410,10 @@ func setUserData(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCo
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func setPhone(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func setPhone(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -431,10 +431,10 @@ func setPhone(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPConte
 	if err := storage.UpdateUser(user); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func delUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func delUser(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var userID types.HexBytes
 	if err := userID.FromString(ctx.URLParam("userid")); err != nil {
 		return err
@@ -442,10 +442,10 @@ func delUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContex
 	if err := storage.DelUser(userID); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
-func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func cloneUser(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	var oldUserID, newUserID types.HexBytes
 	if err := oldUserID.FromString(ctx.URLParam("olduserid")); err != nil {
 		return err
@@ -468,14 +468,14 @@ func cloneUser(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPCont
 	if err := storage.AddUser(newUserID, elections, phone, user.ExtraData); err != nil {
 		return err
 	}
-	return ctx.Send([]byte(respOK), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send([]byte(respOK), apirest.HTTPstatusOK)
 }
 
 type searchUserData struct {
 	Term string `json:"term"`
 }
 
-func search(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext) error {
+func search(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	searchTerm := searchUserData{}
 	if err := json.Unmarshal(msg.Data, &searchTerm); err != nil {
 		return err
@@ -491,5 +491,5 @@ func search(msg *bearerstdapi.BearerStandardAPIdata, ctx *httprouter.HTTPContext
 	if err != nil {
 		return err
 	}
-	return ctx.Send(data, bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(data, apirest.HTTPstatusOK)
 }

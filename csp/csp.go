@@ -10,7 +10,7 @@ import (
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
 	"go.vocdoni.io/dvote/httprouter"
-	"go.vocdoni.io/dvote/httprouter/bearerstdapi"
+	"go.vocdoni.io/dvote/httprouter/apirest"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -26,7 +26,7 @@ const (
 type BlindCSP struct {
 	callbacks *BlindCSPcallbacks
 	router    *httprouter.HTTProuter
-	api       *bearerstdapi.BearerStandardAPI
+	api       *apirest.API
 	signer    *saltedkey.SaltedKey
 	keys      db.Database
 	keysLock  sync.RWMutex
@@ -74,7 +74,7 @@ func (csp *BlindCSP) ServeAPI(r *httprouter.HTTProuter, baseRoute string) error 
 	// Initialize API
 	csp.router = r
 	var err error
-	csp.api, err = bearerstdapi.NewBearerStandardAPI(csp.router, baseRoute)
+	csp.api, err = apirest.NewAPI(csp.router, baseRoute)
 	if err != nil {
 		return err
 	}

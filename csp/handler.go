@@ -8,7 +8,7 @@ import (
 	"github.com/arnaucube/go-blindsecp256k1"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/httprouter"
-	"go.vocdoni.io/dvote/httprouter/bearerstdapi"
+	"go.vocdoni.io/dvote/httprouter/apirest"
 )
 
 const (
@@ -19,7 +19,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/ping",
 		"GET",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.ping,
 	); err != nil {
 		return err
@@ -28,7 +28,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/info",
 		"GET",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.info,
 	); err != nil {
 		return err
@@ -37,7 +37,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/indexer/{userId}",
 		"GET",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.indexer,
 	); err != nil {
 		return err
@@ -46,7 +46,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/{processId}/{signType}/auth/{step}",
 		"POST",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.signatureReq,
 	); err != nil {
 		return err
@@ -55,7 +55,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/{processId}/{signType}/auth",
 		"POST",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.signatureReq,
 	); err != nil {
 		return err
@@ -64,7 +64,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/{processId}/{signType}/sign",
 		"POST",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.signature,
 	); err != nil {
 		return err
@@ -73,7 +73,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	if err := csp.api.RegisterMethod(
 		"/{processId}/sharedkey/{step}",
 		"POST",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.sharedKeyReq,
 	); err != nil {
 		return err
@@ -82,7 +82,7 @@ func (csp *BlindCSP) registerHandlers() error {
 	return csp.api.RegisterMethod(
 		"/{processId}/sharedkey",
 		"POST",
-		bearerstdapi.MethodAccessTypePublic,
+		apirest.MethodAccessTypePublic,
 		csp.sharedKeyReq,
 	)
 }
@@ -91,8 +91,7 @@ func (csp *BlindCSP) registerHandlers() error {
 
 // signatureReq is the signature request handler.
 // It executes the AuthCallback function to allow or deny the request to the client.
-func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) signatureReq(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	req := &types.Message{}
 	if err := req.Unmarshal(msg.Data); err != nil {
 		return err
@@ -139,15 +138,14 @@ func (csp *BlindCSP) signatureReq(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 	resp.Response = authResp.Response
 	resp.AuthToken = authResp.AuthToken
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
 // https://server/v1/auth/processes/<processId>/<signType>/sign
 
 // signature is the performing signature handler.
 // If the token is valid and exist in cache, will perform a signature over the Hash
-func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) signature(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	req := &types.Message{}
 	if err := req.Unmarshal(msg.Data); err != nil {
 		return err
@@ -187,7 +185,7 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 	default:
 		return fmt.Errorf("invalid signature type")
 	}
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
 // https://server/v1/auth/processes/<processId>/sharedkey
@@ -195,8 +193,7 @@ func (csp *BlindCSP) signature(msg *bearerstdapi.BearerStandardAPIdata,
 // sharedKeyReq is the shared key request handler.
 // It executes the AuthCallback function to allow or deny the request to the client.
 // The shared key equals to signatureECDSA(hash(processId)).
-func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) sharedKeyReq(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	req := &types.Message{}
 	if err := req.Unmarshal(msg.Data); err != nil {
 		return err
@@ -235,25 +232,23 @@ func (csp *BlindCSP) sharedKeyReq(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 	resp.Response = authResp.Response
 	resp.AuthToken = authResp.AuthToken
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
-func (csp *BlindCSP) info(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) info(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	if csp.callbacks.Info == nil {
-		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
+		return ctx.Send(nil, apirest.HTTPstatusOK)
 	}
 	resp := csp.callbacks.Info()
 	if resp == nil {
-		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
+		return ctx.Send(nil, apirest.HTTPstatusOK)
 	}
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
-func (csp *BlindCSP) indexer(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) indexer(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	if csp.callbacks.Indexer == nil {
-		return ctx.Send(nil, bearerstdapi.HTTPstatusCodeOK)
+		return ctx.Send(nil, apirest.HTTPstatusOK)
 	}
 	userID, err := hex.DecodeString(trimHex(ctx.URLParam("userId")))
 	if err != nil {
@@ -261,16 +256,15 @@ func (csp *BlindCSP) indexer(msg *bearerstdapi.BearerStandardAPIdata,
 	}
 	var resp types.Message
 	resp.Elections = csp.callbacks.Indexer(userID)
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
 // https://server/v1/auth/ping
 
 // ping is a simple health check handler.
-func (csp *BlindCSP) ping(msg *bearerstdapi.BearerStandardAPIdata,
-	ctx *httprouter.HTTPContext) error {
+func (csp *BlindCSP) ping(msg *apirest.APIdata, ctx *httprouter.HTTPContext) error {
 	resp := &types.Message{Response: []string{"Ok"}}
-	return ctx.Send(resp.Marshal(), bearerstdapi.HTTPstatusCodeOK)
+	return ctx.Send(resp.Marshal(), apirest.HTTPstatusOK)
 }
 
 func trimHex(s string) string {

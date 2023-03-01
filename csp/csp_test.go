@@ -105,7 +105,8 @@ func TestBlindCA(t *testing.T) {
 }
 
 func testAuthHandler(r *http.Request, m *types.Message,
-	pid types.HexBytes, st string, step int) types.AuthResponse {
+	pid types.HexBytes, st string, step int,
+) types.AuthResponse {
 	return types.AuthResponse{
 		Success:  true,
 		Response: []string{fmt.Sprintf("hello %x!", pid)},

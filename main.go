@@ -14,6 +14,7 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/vocdoni/blind-csp/admin"
 	"github.com/vocdoni/blind-csp/csp"
 	"github.com/vocdoni/blind-csp/handlers/handlerlist"
 	"go.vocdoni.io/dvote/crypto/ethereum"
@@ -165,6 +166,7 @@ func main() {
 		router.TLSconfig = tls
 		// Check that the requiered certificate has been included (if any)
 		certFound := false
+		// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
 		for _, cert := range tls.ClientCAs.Subjects() {
 			certFound = authHandler.CertificateCheck(cert)
 			if certFound {
@@ -197,6 +199,15 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := cs.ServeAPI(&router, baseURL); err != nil {
+		log.Fatal(err)
+	}
+
+	admin, err := admin.NewAdmin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := admin.ServeAPI(&router, baseURL+"/admin"); err != nil {
 		log.Fatal(err)
 	}
 

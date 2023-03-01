@@ -6,6 +6,7 @@ import (
 
 	"github.com/vocdoni/blind-csp/handlers"
 	"github.com/vocdoni/blind-csp/handlers/idcathandler"
+	"github.com/vocdoni/blind-csp/handlers/oauthhandler"
 	"github.com/vocdoni/blind-csp/handlers/rsahandler"
 	"github.com/vocdoni/blind-csp/handlers/smshandler"
 )
@@ -19,6 +20,7 @@ var Handlers = map[string]handlers.AuthHandler{
 	"idCatTesting": &idcathandler.IDcatHandler{ForTesting: true},
 	"rsa":          &rsahandler.RsaHandler{},
 	"sms":          &smshandler.SmsHandler{},
+	"oauth":        &oauthhandler.OauthHandler{},
 }
 
 // HandlersList returns a human friendly string with the list of available handlers.
