@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -179,7 +178,7 @@ func TestAuth(t *testing.T) {
 	qt.Assert(t, rsaPemKey, qt.IsNotNil)
 
 	// Create a temporary file fo rstoring the RSA pubKey
-	keyFile, err := ioutil.TempFile("", "")
+	keyFile, err := os.CreateTemp("", "")
 	qt.Assert(t, err, qt.IsNil)
 	keyFilePath := keyFile.Name()
 	_, err = keyFile.Write(rsaPemKey)

@@ -3,13 +3,13 @@ package certvalid
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"time"
 )
 
-/// Encapsulate validation of X509 certificates via a CRL
+// Encapsulate validation of X509 certificates via a CRL
 type X509CRLValidator struct {
 	CA         *x509.Certificate
 	list       map[string]bool
@@ -18,19 +18,20 @@ type X509CRLValidator struct {
 	updateLock sync.RWMutex
 }
 
-/// Create a new validator using the specified CA and the CRL url specified
+// NewX509CRLValidator Create a new validator using the specified CA and the CRL url specified
 func NewX509CRLValidator(ca *x509.Certificate, crlURL string) *X509CRLValidator {
 	return &X509CRLValidator{
 		ca, nil, crlURL, time.Now().AddDate(0, 0, -1), sync.RWMutex{},
 	}
 }
 
-/// Get when the next validation call will fail because needs to call Update()
+// NextUpdateLimit Get when the next validation call will fail because needs to call Update()
 func (x *X509CRLValidator) NextUpdateLimit() time.Time {
 	return x.NextUpdate
 }
 
-/// Update the CRL, is sync safe, so it can be invocated within a goroutine
+// Update the CRL, is sync safe, so it can be invocated within a goroutine
+// TODO: x509 validation should be re-checked since an update on the API might have broken it
 func (x *X509CRLValidator) Update() error {
 	resp, err := http.Get(x.crlURL)
 	if err != nil {
@@ -42,27 +43,28 @@ func (x *X509CRLValidator) Update() error {
 		}
 	}()
 
-	crlBytes, err := ioutil.ReadAll(resp.Body)
+	crlBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	crl, err := x509.ParseDERCRL(crlBytes)
+	crl, err := x509.ParseRevocationList(crlBytes)
 	if err != nil {
 		return err
 	}
 
-	if err := x.CA.CheckCRLSignature(crl); err != nil {
+	if err := crl.CheckSignatureFrom(x.CA); err != nil {
 		return err
 	}
 
-	if crl.HasExpired(time.Now()) {
+	currentTime := time.Now()
+	if crl.ThisUpdate.Before(currentTime) {
 		return fmt.Errorf("expired CRL")
 	}
 
-	x.NextUpdate = crl.TBSCertList.NextUpdate
-	updated := make(map[string]bool, len(crl.TBSCertList.RevokedCertificates))
-	for _, revokedCert := range crl.TBSCertList.RevokedCertificates {
+	x.NextUpdate = crl.NextUpdate
+	updated := make(map[string]bool, len(crl.RevokedCertificates))
+	for _, revokedCert := range crl.RevokedCertificates {
 		updated[revokedCert.SerialNumber.String()] = true
 	}
 
@@ -78,7 +80,7 @@ func (x *X509CRLValidator) RevokatedListSize() int {
 	return len(x.list)
 }
 
-/// IsRevokated checks if a certificate is revokated, use strict mode for production
+// IsRevokated checks if a certificate is revokated, use strict mode for production
 func (x *X509CRLValidator) IsRevokated(cert *x509.Certificate, strict bool) (bool, error) {
 	if strict {
 		if len(cert.CRLDistributionPoints) != 1 || cert.CRLDistributionPoints[0] != x.crlURL {
