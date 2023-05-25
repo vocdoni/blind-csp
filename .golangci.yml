@@ -7,8 +7,6 @@ linters:
         - gofumpt
         - lll
         - staticcheck
-        - structcheck
-        - varcheck
         - unused
         - typecheck
         - ineffassign
