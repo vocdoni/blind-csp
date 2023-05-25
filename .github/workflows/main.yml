@@ -9,7 +9,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version: 1.20.x
           cache: true
       - name: Run golangci-lint
         # run: |
@@ -18,7 +18,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         ### golangci-lint will take much time if loading multiple linters in .golangci.yml
         with:
-          version: v1.30.0
+          version: v1.52.2
           args: --timeout 3m --verbose
           skip-cache: false
           skip-pkg-cache: false
@@ -29,7 +29,7 @@ jobs:
     # matrix strategy from: https://github.com/mvdan/github-actions-golang/blob/master/.github/workflows/test.yml
     strategy:
       matrix:
-        go-version: [1.17.x]
+        go-version: [1.20.x]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
