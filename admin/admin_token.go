@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/vochain/processid"
@@ -19,9 +20,9 @@ func GenerateAdminToken(electionId types.HexBytes) (string, error) {
 
 	currentTime := time.Now()
 	dateString := currentTime.Format("200601")
-	token := ethereum.HashRaw(append([]byte(secretKey), append(electionId, []byte(dateString)...)...))
-
-	return string(token), nil
+	data := append([]byte(secretKey), append(electionId, []byte(dateString)...)...)
+	token := ethcrypto.Keccak256Hash(data).String()
+	return token, nil
 }
 
 // ValidateAdminToken validates an admin token for an election
