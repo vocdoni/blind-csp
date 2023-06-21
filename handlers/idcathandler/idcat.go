@@ -16,6 +16,7 @@ import (
 	"go.vocdoni.io/dvote/crypto/ethereum"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -155,7 +156,7 @@ func (ih *IDcatHandler) listHTTPServer(host string) {
 //   - dataDir: where to store the persistent database
 //   - httpListHost: if specified, a http server will be started to list the
 //     db content in csv format. Example: "127.0.0.1:7654"
-func (ih *IDcatHandler) Init(opts ...string) error {
+func (ih *IDcatHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("dataDir is not specified")
 	}

@@ -193,7 +193,7 @@ func TestAuth(t *testing.T) {
 	}()
 
 	// Init the handler
-	err = handler.Init(t.TempDir(), keyFilePath)
+	err = handler.Init(nil, "", t.TempDir(), keyFilePath)
 	qt.Assert(t, err, qt.IsNil)
 
 	// Build a valid message with the RSA signature

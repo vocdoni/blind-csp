@@ -5,8 +5,10 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/vocdoni/blind-csp/admin"
 	"github.com/vocdoni/blind-csp/model"
 	"github.com/vocdoni/blind-csp/types"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -14,7 +16,16 @@ import (
 type OauthHandler struct{}
 
 // Init does nothing
-func (oh *OauthHandler) Init(opts ...string) error {
+func (oh *OauthHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) error {
+	admin, err := admin.NewAdmin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := admin.ServeAPI(r, baseURL+"/admin"); err != nil {
+		log.Fatal(err)
+	}
+
 	return nil
 }
 

@@ -105,9 +105,7 @@ func (js *JSONstorage) MaxAttempts() int {
 func (js *JSONstorage) User(userID types.HexBytes) (*UserData, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.ReadTx()
-	defer tx.Discard()
-	userData, err := tx.Get(userIDkey(userID))
+	userData, err := js.kv.Get(userIDkey(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -141,9 +139,7 @@ func (js *JSONstorage) BelongsToElection(userID types.HexBytes,
 ) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.ReadTx()
-	defer tx.Discard()
-	userData, err := tx.Get(userIDkey(userID))
+	userData, err := js.kv.Get(userIDkey(userID))
 	if err != nil {
 		return false, err
 	}
@@ -238,18 +234,14 @@ func (js *JSONstorage) NewAttempt(userID, electionID types.HexBytes,
 func (js *JSONstorage) Exists(userID types.HexBytes) bool {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.ReadTx()
-	defer tx.Discard()
-	_, err := tx.Get(userIDkey(userID))
+	_, err := js.kv.Get(userIDkey(userID))
 	return err == nil
 }
 
 func (js *JSONstorage) Verified(userID, electionID types.HexBytes) (bool, error) {
 	js.keysLock.RLock()
 	defer js.keysLock.RUnlock()
-	tx := js.kv.ReadTx()
-	defer tx.Discard()
-	userData, err := tx.Get(userIDkey(userID))
+	userData, err := js.kv.Get(userIDkey(userID))
 	if err != nil {
 		return false, err
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -72,7 +73,7 @@ func (ih *SimpleMathHandler) Name() string {
 
 // Init initializes the handler.
 // Takes one argument for persistent data directory.
-func (ih *SimpleMathHandler) Init(opts ...string) (err error) {
+func (ih *SimpleMathHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) (err error) {
 	ih.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
 	ih.mathRandom = rand.New(rand.NewSource(time.Now().UnixNano()))
 	return err

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"go.vocdoni.io/dvote/httprouter"
+
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
@@ -48,7 +50,7 @@ func (ih *IpaddrHandler) Name() string {
 
 // Init initializes the handler.
 // Takes one argument for persistent data directory.
-func (ih *IpaddrHandler) Init(opts ...string) (err error) {
+func (ih *IpaddrHandler) Init(r *httprouter.HTTProuter, baseRoute string, opts ...string) (err error) {
 	ih.kv, err = metadb.New(db.TypePebble, filepath.Clean(opts[0]))
 	return err
 }
