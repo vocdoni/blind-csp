@@ -17,6 +17,7 @@ import (
 	"github.com/vocdoni/blind-csp/types"
 	"go.vocdoni.io/dvote/db"
 	"go.vocdoni.io/dvote/db/metadb"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -56,8 +57,6 @@ func (rh *RsaHandler) addKey(voterID, processID []byte) error {
 func (rh *RsaHandler) exist(voterID, processID []byte) bool {
 	rh.keysLock.RLock()
 	defer rh.keysLock.RUnlock()
-	tx := rh.kv.ReadTx()
-	defer tx.Discard()
 	var key bytes.Buffer
 	_, err := key.Write(processID)
 	if err != nil {
@@ -67,7 +66,7 @@ func (rh *RsaHandler) exist(voterID, processID []byte) bool {
 	if err != nil {
 		return false
 	}
-	_, err = tx.Get(key.Bytes())
+	_, err = rh.kv.Get(key.Bytes())
 	return err == nil
 }
 
@@ -78,7 +77,7 @@ func (rh *RsaHandler) Name() string {
 
 // Init initializes the handler.
 // Takes one argument for persistent data directory.
-func (rh *RsaHandler) Init(opts ...string) (err error) {
+func (rh *RsaHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) (err error) {
 	if len(opts) != 2 {
 		return fmt.Errorf("rsa handler requires a file path with the validation RSA key")
 	}

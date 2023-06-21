@@ -24,7 +24,7 @@ func TestStorageJSON(t *testing.T) {
 }
 
 func TestStorageMongoDB(t *testing.T) {
-	imageName := "mongo:5.0.9"
+	imageName := "bitnami/mongodb:latest"
 	containerName := fmt.Sprintf("gotest_mongo_%08d", rand.Intn(100000000))
 
 	ctx := context.Background()

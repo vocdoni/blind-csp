@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nyaruka/phonenumbers"
 	"github.com/vocdoni/blind-csp/types"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -50,7 +51,7 @@ func (sh *SmsHandler) Name() string {
 // Second is the data directory (mandatory).
 // Third is the SMS cooldown time in milliseconds (optional).
 // Fourth is the SMS throttle time in milliseconds (optional).
-func (sh *SmsHandler) Init(opts ...string) error {
+func (sh *SmsHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) error {
 	if len(opts) == 0 {
 		return fmt.Errorf("no data dir provided")
 	}

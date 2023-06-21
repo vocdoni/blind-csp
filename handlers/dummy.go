@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vocdoni/blind-csp/types"
+	"go.vocdoni.io/dvote/httprouter"
 	"go.vocdoni.io/dvote/log"
 )
 
@@ -13,7 +14,7 @@ import (
 type DummyHandler struct{}
 
 // Init does nothing
-func (dh *DummyHandler) Init(opts ...string) error {
+func (dh *DummyHandler) Init(r *httprouter.HTTProuter, baseURL string, opts ...string) error {
 	return nil
 }
 

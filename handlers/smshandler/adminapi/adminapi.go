@@ -56,7 +56,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	log.Init(logLevel, "stdout")
+	log.Init(logLevel, "stdout", nil)
 	// Create the HTTP router
 	router := httprouter.HTTProuter{}
 	router.TLSdomain = tlsDomain

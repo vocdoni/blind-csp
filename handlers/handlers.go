@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/vocdoni/blind-csp/types"
+	"go.vocdoni.io/dvote/httprouter"
 )
 
 // AuthFunc is the function type required for performing an authentication
@@ -30,7 +31,7 @@ type IndexerFunc = func(userID types.HexBytes) (elections []types.Election)
 //  2. blind: performs a blind ECDSA signature over the payload provided by the user
 //  3. sharedkey: performs a plain ECDSA signature over hash(processId)
 type AuthHandler interface {
-	Init(opts ...string) error
+	Init(router *httprouter.HTTProuter, httpBaseRoute string, opts ...string) error
 	Name() string
 	Auth(httpRequest *http.Request,
 		message *types.Message,

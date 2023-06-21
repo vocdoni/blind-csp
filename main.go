@@ -14,7 +14,6 @@ import (
 
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"github.com/vocdoni/blind-csp/admin"
 	"github.com/vocdoni/blind-csp/csp"
 	"github.com/vocdoni/blind-csp/handlers/handlerlist"
 	"go.vocdoni.io/dvote/crypto/ethereum"
@@ -122,7 +121,7 @@ func main() {
 	}
 
 	// Start
-	log.Init(loglevel, "stdout")
+	log.Init(loglevel, "stdout", nil)
 	signer := ethereum.SignKeys{}
 	if privKey == "" {
 		if err := signer.Generate(); err != nil {
@@ -147,12 +146,17 @@ func main() {
 	router.TLSdomain = domain
 	router.TLSdirCert = filepath.Join(dataDir, "tls")
 
+	// Start the router
+	if err := router.Init("0.0.0.0", port); err != nil {
+		log.Fatal(err)
+	}
+
 	// Create the auth handler (currently a dummy one that only checks the IP)
 	authHandler := handlerlist.Handlers[handler]
 	if authHandler == nil {
 		log.Fatalf("handler %s is unknown", handler)
 	}
-	if err := authHandler.Init(handlerOpts...); err != nil {
+	if err := authHandler.Init(&router, baseURL, handlerOpts...); err != nil {
 		log.Fatal(err)
 	}
 	log.Infof("using handler %s", handler)
@@ -178,11 +182,6 @@ func main() {
 		}
 	}
 
-	// Start the router
-	if err := router.Init("0.0.0.0", port); err != nil {
-		log.Fatal(err)
-	}
-
 	// Create the blind CSP API and assign the auth function
 	pub, priv := signer.HexString()
 	log.Infof("CSP root public key: %s", pub)
@@ -199,15 +198,6 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := cs.ServeAPI(&router, baseURL); err != nil {
-		log.Fatal(err)
-	}
-
-	admin, err := admin.NewAdmin()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := admin.ServeAPI(&router, baseURL+"/admin"); err != nil {
 		log.Fatal(err)
 	}
 
