@@ -1,12 +1,14 @@
-Endpoints:
+### Endpoints
+
 All the operations and results must be filtered by the Authentified user access.
 
 - [GET] `/admin/elections` : Returns all elections
 
-- [GET] `/admin/elections/[electionId]` : Returns the provided electionId information
+- [GET] `/admin/elections/:electionId` : Returns the provided electionId information
 
 - [POST] `/admin/elections` : Creates a new Census and attaches it to a new Election from the defined data. Returns the new Election ID.
-Request JSON body example:
+Request JSON body example
+```json
 { "handlers": 
     [
         {
@@ -27,13 +29,15 @@ Request JSON body example:
         }
     ]
 }
+```
 
-- [DELETE] `/admin/elections/[electionId] : Deletes election ID
+- [DELETE] `/admin/elections/:electionId` : Deletes election ID
 
-- [GET] `/admin/elections/[electionId]/users : List users in election
+- [GET] `/admin/elections/:electionId/users` : List users in election
 
-- [POST] `/admin/elections/[electionId]/users : Add user in election
+- [POST] `/admin/elections/:electionId/users` : Add user in election
 Request JSON body example:
+```json
 {
     "handler": "oauth",
     "service": "facebook",
@@ -41,15 +45,16 @@ Request JSON body example:
     "data": "nigeon@gmail.com",
     "consumed": false
 }
+```
+- [GET] `/admin/elections/[electionId]/users/[user]` : Get user
 
-- [GET] `/admin/elections/[electionId]/users/[user] : Get user
-
-- [PUT] `/admin/elections/[electionId]users/[user] : Edits user
+- [PUT] `/admin/elections/[electionId]users/[user]` : Edits user
 Request JSON body example:
+```json
 {
     "consumed": true
 }
+```
+- [DELETE] `/admin/elections/:electionId/users/[user]` : Deletes user
 
-- [DELETE] `/admin/elections/[electionId]users/[user] : Deletes user
-
-- [GET] `/admin/elections/[electionId]/users : List of users in the elections
+- [GET] `/admin/elections/:electionId/users` : List of users in the elections
