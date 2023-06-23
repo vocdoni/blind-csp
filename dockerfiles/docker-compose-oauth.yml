@@ -4,17 +4,16 @@ version: '3.1'
 services:
 
   mongo:
-    image: 'bitnami/mongodb:latest'
+    image: mongo
     restart: ${RESTART:-no}
     ports:
       - 27017:27017
     environment:
-      - MONGODB_USERNAME=root
-      - MONGODB_PASSWORD=vocdoni
-      - MONGODB_DATABASE=oauth
-      - MONGODB_ROOT_PASSWORD=vocdoni
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=vocdoni
+      - MONGO_INITDB_DATABASE=oauth
     volumes:
-      - mongodb:/bitnami/mongodb
+      - mongodb:/data/mongodb
 
   blind-csp:
     build:
