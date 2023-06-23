@@ -4,28 +4,23 @@ version: '3.1'
 services:
 
   mongo:
-    image: 'bitnami/mongodb:latest'
+    image: mongo
     restart: ${RESTART:-no}
     ports:
       - 27017:27017
     environment:
-      - MONGODB_USERNAME=root
-      - MONGODB_PASSWORD=vocdoni
-      - MONGODB_DATABASE=oauth
-      - MONGODB_ROOT_PASSWORD=vocdoni
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=vocdoni
+      - MONGO_INITDB_DATABASE=oauth
     volumes:
-      - mongodb:/bitnami/mongodb
+      - mongodb:/data/mongodb
 
   blind-csp:
     build:
       context: ../
     image: ghcr.io/vocdoni/blind-csp:${CSP_TAG:-master}
-    environment:
-      - CSP_HANDLER=oauth
-      - CSP_DATADIR=/app/data
-      - CSP_MONGODB_URL=mongodb://root:vocdoni@mongo:27017/
-      - CSP_DATABASE=oauth
-      - CSP_PORT=5000
+    env_file:
+      - .env
     ports:
       - 5000:5000
     depends_on:
