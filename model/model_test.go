@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	electionStore model.ElectionStore
-	userStore     model.UserStore
+	electionStore     model.ElectionStore
+	userelectionStore model.UserelectionStore
+	userStore         model.UserStore
 )
 
 func TestMain(m *testing.M) {
@@ -40,6 +41,7 @@ func TestMain(m *testing.M) {
 	}
 
 	electionStore = model.NewElectionStore(db)
+	userelectionStore = model.NewUserelectionStore(db)
 	userStore = model.NewUserStore(db)
 
 	exitCode := m.Run()

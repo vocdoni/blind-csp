@@ -51,7 +51,36 @@ func (oh *OauthHandler) Info() *types.Message {
 // the user is elegible for participation. This is a helper function that might not
 // be implemented (depends on the handler use case).
 func (oh *OauthHandler) Indexer(userID types.HexBytes) []types.Election {
-	return nil
+	// Init the Storage and get the user
+	storage := &model.MongoStorage{}
+	if err := storage.Init(); err != nil {
+		log.Fatal(err)
+	}
+
+	userelectionStore := model.NewUserelectionStore(storage)
+	user, err := userelectionStore.GetUserElections(userID)
+	if err != nil {
+		log.Warnf("cannot get indexer elections: %v", err)
+		return nil
+	}
+
+	indexerElections := []types.Election{}
+	for _, e := range user.Elections {
+		remainingAttempts := 1
+		if *e.Consumed {
+			remainingAttempts = 0
+		}
+
+		ie := types.Election{
+			RemainingAttempts: remainingAttempts,
+			Consumed:          *e.Consumed,
+			ElectionID:        e.ElectionID,
+			ExtraData:         []string{user.Service, user.Handler, user.Mode, user.Data},
+		}
+		indexerElections = append(indexerElections, ie)
+	}
+
+	return indexerElections
 }
 
 // Auth is the handler for the dummy handler
@@ -129,13 +158,13 @@ func (oh *OauthHandler) Auth(r *http.Request,
 		}
 
 		consumed := false
-		request := model.UserRequest{
+		request := model.UserelectionRequest{
 			Handler:  "oauth",
 			Service:  service,
 			Consumed: &consumed,
 		}
 
-		userStore := model.NewUserStore(storage) // This is a bit ugly, but it's the only way to avoid services
+		userelectionStore := model.NewUserelectionStore(storage) // This is a bit ugly, but it's the only way to avoid services
 		for _, mode := range []string{"usernames"} {
 			request.Mode = mode
 
@@ -143,7 +172,7 @@ func (oh *OauthHandler) Auth(r *http.Request,
 				request.Data = profile[provider.UsernameField].(string)
 			}
 
-			usersPtr, err := userStore.SearchUser(pid, request)
+			usersPtr, err := userelectionStore.SearchUserelection(pid, request)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -152,7 +181,8 @@ func (oh *OauthHandler) Auth(r *http.Request,
 			users := *usersPtr
 			consumedT := true
 			if len(users) == 1 {
-				if _, err := userStore.UpdateUser(pid, users[0].ID, model.UserRequest{Consumed: &consumedT}); err != nil {
+				if _, err := userelectionStore.UpdateUserelection(pid,
+					users[0].UserID, model.UserelectionRequest{Consumed: &consumedT}); err != nil {
 					return types.AuthResponse{Response: []string{"error updating the voter"}}
 				}
 

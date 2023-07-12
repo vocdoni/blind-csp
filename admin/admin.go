@@ -16,11 +16,11 @@ const bearerTokenReqAmount = 100000000
 
 // Admin is the main struct for the admin API, containing all the controllers, router and storage
 type Admin struct {
-	router             *httprouter.HTTProuter
-	api                *apirest.API
-	storage            *model.MongoStorage
-	electionController *ElectionController
-	userController     *UserController
+	router                 *httprouter.HTTProuter
+	api                    *apirest.API
+	storage                *model.MongoStorage
+	electionController     *ElectionController
+	userElectionController *UserelectionController
 }
 
 // NewAdmin creates a new Admin instance by initializing the storage and controllers
@@ -28,9 +28,9 @@ func NewAdmin() (*Admin, error) {
 	mongoStorage := model.MongoStorage{}
 
 	return &Admin{
-		storage:            &mongoStorage,
-		electionController: NewElectionController(model.NewElectionStore(&mongoStorage)),
-		userController:     NewUserController(model.NewUserStore(&mongoStorage)),
+		storage:                &mongoStorage,
+		electionController:     NewElectionController(model.NewElectionStore(&mongoStorage)),
+		userElectionController: NewUserelectionController(model.NewUserelectionStore(&mongoStorage)),
 	}, mongoStorage.Init()
 }
 
@@ -95,6 +95,7 @@ func (admin *Admin) registerHandlers() error {
 		return err
 	}
 
+	// Obtain the authentication token for a given election
 	if err := admin.api.RegisterMethod(
 		"/elections/{electionId}/auth",
 		"POST",
@@ -126,7 +127,7 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users",
 		"GET",
 		apirest.MethodAccessTypePublic,
-		admin.userController.List,
+		admin.userElectionController.List,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -135,7 +136,7 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users",
 		"POST",
 		apirest.MethodAccessTypePublic,
-		admin.userController.Create,
+		admin.userElectionController.Create,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users/{userId}",
 		"GET",
 		apirest.MethodAccessTypePublic,
-		admin.userController.User,
+		admin.userElectionController.Userelection,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -153,7 +154,7 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users/{userId}",
 		"PUT",
 		apirest.MethodAccessTypePublic,
-		admin.userController.Update,
+		admin.userElectionController.Update,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -162,7 +163,7 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users/{userId}",
 		"DELETE",
 		apirest.MethodAccessTypePublic,
-		admin.userController.Delete,
+		admin.userElectionController.Delete,
 	); err != nil {
 		log.Fatal(err)
 	}
@@ -171,7 +172,16 @@ func (admin *Admin) registerHandlers() error {
 		"/elections/{electionId}/users/search",
 		"POST",
 		apirest.MethodAccessTypePublic,
-		admin.userController.Search,
+		admin.userElectionController.Search,
+	); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := admin.api.RegisterMethod(
+		"/users/{userId}",
+		"GET",
+		apirest.MethodAccessTypePublic,
+		admin.userElectionController.GetUserElections,
 	); err != nil {
 		log.Fatal(err)
 	}
