@@ -69,10 +69,10 @@ func (store *electionStore) CreateElection(election *Election) (*Election, error
 	}
 
 	// Foreach handler in census data, create a User
-	userStore := NewUserStore(store.db) // This is a bit ugly, but it's the only way to avoid services
+	userelectionStore := NewUserelectionStore(store.db) // This is a bit ugly, but it's the only way to avoid services
 	for _, handler := range election.Handlers {
 		for _, userData := range handler.Data {
-			if _, err := userStore.CreateUser(election.ID, handler, userData); err != nil {
+			if _, err := userelectionStore.CreateUserelection(election.ID, handler, userData); err != nil {
 				return nil, err
 			}
 		}

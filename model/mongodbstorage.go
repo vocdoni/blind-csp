@@ -17,9 +17,10 @@ import (
 )
 
 type MongoStorage struct {
-	keysLock  sync.RWMutex
-	elections *mongo.Collection
-	users     *mongo.Collection
+	keysLock      sync.RWMutex
+	elections     *mongo.Collection
+	users         *mongo.Collection
+	userelections *mongo.Collection
 }
 
 func (ms *MongoStorage) Init() error {
@@ -66,6 +67,7 @@ func (ms *MongoStorage) Init() error {
 	}
 	ms.elections = client.Database(database).Collection("elections")
 	ms.users = client.Database(database).Collection("users")
+	ms.userelections = client.Database(database).Collection("userelections")
 
 	// Create an index on the 'ElectionId/data' field (used when searching for a user)
 	indexModel := mongo.IndexModel{
@@ -75,7 +77,7 @@ func (ms *MongoStorage) Init() error {
 		},
 	}
 
-	if _, err := ms.users.Indexes().CreateOne(context.Background(), indexModel); err != nil {
+	if _, err := ms.userelections.Indexes().CreateOne(context.Background(), indexModel); err != nil {
 		log.Fatal(err)
 	}
 
@@ -89,6 +91,9 @@ func (ms *MongoStorage) Init() error {
 			return err
 		}
 		if err := ms.users.Drop(ctx); err != nil {
+			return err
+		}
+		if err := ms.userelections.Drop(ctx); err != nil {
 			return err
 		}
 	}
