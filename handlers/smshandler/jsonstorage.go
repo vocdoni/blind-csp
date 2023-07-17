@@ -41,6 +41,11 @@ func (js *JSONstorage) Init(dataDir string, maxAttempts int, coolDownTime time.D
 	return nil
 }
 
+// Reset does nothing on this storage
+func (js *JSONstorage) Reset() error {
+	return nil
+}
+
 func (js *JSONstorage) Users() (*Users, error) {
 	var us Users
 	if err := js.kv.Iterate(nil, func(key, value []byte) bool {

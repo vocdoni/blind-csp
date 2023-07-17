@@ -75,12 +75,31 @@ func (ms *MongoStorage) Init(dataDir string, maxAttempts int, coolDownTime time.
 	if err != nil {
 		return fmt.Errorf("cannot connect to mongodb: %w", err)
 	}
+
 	ms.users = client.Database(database).Collection("users")
 	ms.tokenIndex = client.Database(database).Collection("tokenindex")
 	ms.maxSmsAttempts = maxAttempts
 	ms.coolDownTime = coolDownTime
 
-	// Create text index on `extra` for finding user data
+	// If reset flag is enabled, Reset drops the database documents and recreates indexes
+	// else, just createIndexes
+	if reset := os.Getenv("CSP_RESET_DB"); reset != "" {
+		err := ms.Reset()
+		if err != nil {
+			return err
+		}
+	} else {
+		err := ms.createIndexes()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ms *MongoStorage) createIndexes() error {
+	// Create text index on `extraData` for finding user data
 	ctx, cancel3 := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel3()
 	index := mongo.IndexModel{
@@ -88,20 +107,22 @@ func (ms *MongoStorage) Init(dataDir string, maxAttempts int, coolDownTime time.
 			{Key: "extradata", Value: "text"},
 		},
 	}
-	_, err = ms.users.Indexes().CreateOne(ctx, index)
+	_, err := ms.users.Indexes().CreateOne(ctx, index)
 	if err != nil {
 		return err
 	}
+	return nil
+}
 
-	// If reset flag is enabled, drop database documents
-	// TODO: make the reset function part of the storage interface
-	if reset := os.Getenv("CSP_RESET_DB"); reset != "" {
-		log.Infof("reseting database")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err = ms.users.Drop(ctx); err != nil {
-			return err
-		}
+func (ms *MongoStorage) Reset() error {
+	log.Infof("resetting database")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := ms.users.Drop(ctx); err != nil {
+		return err
+	}
+	if err := ms.createIndexes(); err != nil {
+		return err
 	}
 	return nil
 }
