@@ -39,7 +39,7 @@ jobs:
     # matrix strategy from: https://github.com/mvdan/github-actions-golang/blob/master/.github/workflows/test.yml
     strategy:
       matrix:
-        go-version: [1.20.x]
+        go-version: [1.20.5] # avoid v1.20.6 due to https://github.com/testcontainers/testcontainers-go/issues/1359
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
