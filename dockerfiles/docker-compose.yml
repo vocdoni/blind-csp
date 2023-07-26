@@ -3,19 +3,19 @@ version: "3.7"
 services:
   blind-csp:
     image: ghcr.io/vocdoni/blind-csp:${CSP_TAG:-master}
-    env_file: ".env"
     sysctls:
       net.core.somaxconn: 8128
     volumes:
       - blind-csp:/app/data
-      - "./handlerFiles:/handlerFiles"
+      - ./handlerFiles:/handlerFiles
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.blind-csp.rule=Host(`${SERVER_NAME}`)"
       - "traefik.http.routers.blind-csp.entrypoints=websecure"
       - "traefik.http.routers.blind-csp.tls.certresolver=le"
       - "traefik.http.routers.blind-csp.service=blind-csp"
-      - "traefik.http.services.blind-csp.loadbalancer.server.port=5000"
+      - "traefik.http.services.blind-csp.loadbalancer.server.port=${CSP_PORT}"
+    restart: ${RESTART:-no}
 
   traefik:
     image: traefik:2.5
@@ -36,9 +36,10 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.le.acme.httpchallenge=true"
       - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.le.acme.email=email@foo.bar"
+      - "--certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}"
       - "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json"
-    restart: always
+    restart: ${RESTART:-no}
+
   watchtower:
     image: containrrr/watchtower
     volumes:
@@ -46,7 +47,7 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable="false"
     command: --interval 30 --cleanup
-
+    restart: ${RESTART:-no}
 
 volumes:
   blind-csp: {}
