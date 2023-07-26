@@ -7,16 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/strikesecurity/strikememongo"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"github.com/vocdoni/blind-csp/model"
+	"github.com/vocdoni/blind-csp/test"
 )
-
-// mongodbContainer represents the mongodb container type used in the module
-type mongodbContainer struct {
-	testcontainers.Container
-}
 
 var (
 	electionStore model.ElectionStore
@@ -25,11 +18,19 @@ var (
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
-	container, _ := startMongoContainer(ctx)
-	mongoURI, _ := container.Endpoint(ctx, "mongodb")
+	container, err := test.StartMongoContainer(ctx)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = container.Terminate(ctx) }()
+
+	mongoURI, err := container.Endpoint(ctx, "mongodb")
+	if err != nil {
+		panic(err)
+	}
 
 	_ = os.Setenv("CSP_MONGODB_URL", mongoURI)
-	_ = os.Setenv("CSP_DATABASE", strikememongo.RandomDatabase())
+	_ = os.Setenv("CSP_DATABASE", test.RandomDatabaseName())
 	_ = os.Setenv("CSP_RESET_DB", "true")
 
 	// Storage
@@ -43,31 +44,7 @@ func TestMain(m *testing.M) {
 
 	exitCode := m.Run()
 
-	_ = container.Terminate(ctx)
-
 	os.Exit(exitCode)
-}
-
-// startMongoContainer creates an instance of the mongodb container type
-func startMongoContainer(ctx context.Context) (*mongodbContainer, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        "mongo:6",
-		ExposedPorts: []string{"27017/tcp"},
-		WaitingFor: wait.ForAll(
-			wait.ForLog("Waiting for connections"),
-			wait.ForListeningPort("27017/tcp"),
-		),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &mongodbContainer{Container: container}, nil
 }
 
 func generateID(length int) string {

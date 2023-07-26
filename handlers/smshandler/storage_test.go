@@ -8,9 +8,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/uuid"
-	"github.com/strikesecurity/strikememongo"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/vocdoni/blind-csp/test"
 	"github.com/vocdoni/blind-csp/types"
 )
 
@@ -19,45 +17,22 @@ func TestStorageJSON(t *testing.T) {
 	testStorage(t, js)
 }
 
-// mongodbContainer represents the mongodb container type used in the module
-type mongodbContainer struct {
-	testcontainers.Container
-}
-
 func TestStorageMongoDB(t *testing.T) {
 	ctx := context.Background()
-	container, _ := startMongoContainer(ctx)
-	mongoURI, _ := container.Endpoint(ctx, "mongodb")
+	container, err := test.StartMongoContainer(ctx)
+	qt.Assert(t, err, qt.IsNil)
+	defer func() { _ = container.Terminate(ctx) }()
+
+	mongoURI, err := container.Endpoint(ctx, "mongodb")
+	qt.Assert(t, err, qt.IsNil)
 
 	_ = os.Setenv("CSP_MONGODB_URL", mongoURI)
-	_ = os.Setenv("CSP_DATABASE", strikememongo.RandomDatabase())
+	_ = os.Setenv("CSP_DATABASE", test.RandomDatabaseName())
 	_ = os.Setenv("CSP_RESET_DB", "true")
 
 	testStorage(t, &MongoStorage{})
 
-	_ = container.Terminate(ctx)
-}
-
-// startMongoContainer creates an instance of the mongodb container type
-func startMongoContainer(ctx context.Context) (*mongodbContainer, error) {
-	req := testcontainers.ContainerRequest{
-		Image:        "mongo:6",
-		ExposedPorts: []string{"27017/tcp"},
-		WaitingFor: wait.ForAll(
-			wait.ForLog("Waiting for connections"),
-			wait.ForListeningPort("27017/tcp"),
-		),
-	}
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &mongodbContainer{Container: container}, nil
+	qt.Assert(t, err, qt.IsNil)
 }
 
 func testStorage(t *testing.T, stg Storage) {
