@@ -3,6 +3,7 @@ version: "3.7"
 services:
   blind-csp:
     image: ghcr.io/vocdoni/blind-csp:${CSP_TAG:-master}
+    env_file: .env
     sysctls:
       net.core.somaxconn: 8128
     volumes:
