@@ -6,19 +6,17 @@ require (
 	github.com/arnaucube/go-blindsecp256k1 v0.0.0-20220421060538-07077d895da5
 	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/pebble v0.0.0-20230620232302-06034ff014e0 // indirect
-	github.com/docker/docker v23.0.5+incompatible
+	github.com/docker/docker v23.0.5+incompatible // indirect
 	github.com/enriquebris/goconcurrentqueue v0.6.3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/frankban/quicktest v1.14.5
 	github.com/google/uuid v1.3.0
-	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
 	github.com/messagebird/go-rest-api/v7 v7.1.0
 	github.com/nyaruka/phonenumbers v1.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
-	github.com/strikesecurity/strikememongo v0.2.4 // direct
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/testcontainers/testcontainers-go v0.20.1
 	github.com/twilio/twilio-go v0.26.0
@@ -30,9 +28,9 @@ require (
 	github.com/766b/chi-prometheus v0.0.0-20211217152057-87afa9aa2ca8 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/acobaugh/osrelease v0.0.0-20181218015638-a93a0a55a249 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/redact v1.1.3 // indirect

@@ -11,4 +11,6 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifi
 
 WORKDIR /app
 COPY --from=builder /src/blind-csp ./
+COPY --from=builder /src/handlers/oauthhandler/config.yml ./handlers/oauthhandler/config.yml
+
 ENTRYPOINT ["/app/blind-csp"]
