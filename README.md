@@ -9,7 +9,7 @@ Its design makes very easy to write new authentication handlers such as the ones
 
 ## Salted keys
 
-The CSP server cannot see the payload of what is being signed (it is blinded) and since the server cannot see what is signing a valid signature proof provided by the CSP might be reused or requested for a different validation process. This is not something is desired to happen because the voter can then vote on processes where is not allowed to.
+The CSP server cannot see the payload of what is being signed (it is blinded) and since the server cannot see what is signing a valid signature proof provided by the CSP might be reused or requested for a different validation process. This is not something is desired to happen because the voter can then vote on elections where is not allowed to.
 
 For making the CSP voter approval valid only for a specific process (identified by a 20 bytes word: electionId), a deterministic key derivation 
 is used. So the CSP is only required to publish a single root public key. The specific per-process keys will be computed
@@ -137,7 +137,7 @@ Is the signature performed by the CSP. The payload to sign is usually an ephemer
 
 - Request
 ```bash
-curl -X POST https://server.foo/v1/auth/processes/12345.../blind/sign -d '{ "payload": "0xabcdef...", "token": "0x123bcde..." }'
+curl -X POST https://server.foo/v1/auth/elections/12345.../blind/sign -d '{ "payload": "0xabcdef...", "token": "0x123bcde..." }'
 ```
 - Response OK
 ```json

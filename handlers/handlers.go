@@ -21,7 +21,7 @@ type AuthFunc = func(
 type InfoFunc = func() (message *types.Message)
 
 // IndexerFunc is the function type used for providing the user with the list of
-// processes where its participation is allowed.
+// elections where its participation is allowed.
 type IndexerFunc = func(userID types.HexBytes) (elections []types.Election)
 
 // AuthHandler is the interface that all CSP handlers should implement.
