@@ -46,7 +46,7 @@ func (dh *DummyHandler) Indexer(userID types.HexBytes) []types.Election {
 func (dh *DummyHandler) Auth(r *http.Request,
 	ca *types.Message, pid types.HexBytes, signType string, step int,
 ) types.AuthResponse {
-	log.Infof(r.UserAgent())
+	log.Info(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	log.Infof("new user registered with ip %s", ipaddr)
 	return types.AuthResponse{

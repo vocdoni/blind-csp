@@ -46,7 +46,7 @@ func testStorage(t *testing.T, stg Storage) {
 		err := stg.AddUser(uh, ph, data.phone, data.extra)
 		qt.Assert(t, err, qt.IsNil)
 	}
-	t.Logf(stg.String())
+	t.Log(stg.String())
 
 	users, err := stg.Users()
 	qt.Assert(t, err, qt.IsNil)
@@ -163,7 +163,7 @@ func testStorage(t *testing.T, stg Storage) {
 	qt.Assert(t, err, qt.IsNil)
 	qt.Assert(t, valid, qt.IsFalse)
 
-	t.Logf(stg.String())
+	t.Log(stg.String())
 
 	// test search term
 	users, err = stg.Search("Smith")

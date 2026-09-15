@@ -59,7 +59,7 @@ func (ih *IpaddrHandler) Init(r *httprouter.HTTProuter, baseRoute string, opts .
 func (ih *IpaddrHandler) Auth(r *http.Request,
 	ca *types.Message, pid types.HexBytes, signType string, step int,
 ) types.AuthResponse {
-	log.Infof(r.UserAgent())
+	log.Info(r.UserAgent())
 	ipaddr := strings.Split(r.RemoteAddr, ":")[0]
 	if len(ipaddr) == 0 {
 		log.Warnf("cannot get ip from request: %s", r.RemoteAddr)
