@@ -1,19 +1,26 @@
-issues:
-        max-same-issues: 0
-        exclude-use-default: false
+version: "2"
 linters:
-        enable:
-        - misspell
-        - gofumpt
-        - lll
-        - staticcheck
-        - unused
-        - typecheck
-        - ineffassign
-        - errcheck
-        - gosimple
-        - goconst
-
-linters-settings:
-        lll:
-                line-length: 130
+  enable:
+    - goconst
+    - lll
+    - misspell
+  settings:
+    lll:
+      line-length: 130
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
