@@ -14,7 +14,7 @@ require (
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
 	github.com/messagebird/go-rest-api/v7 v7.1.0
-	github.com/nyaruka/phonenumbers v1.1.0
+	github.com/nyaruka/phonenumbers v1.2.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
 	github.com/subosito/gotenv v1.4.2 // indirect
