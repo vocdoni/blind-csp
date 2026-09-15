@@ -7,8 +7,36 @@ import (
 
 	blind "github.com/arnaucube/go-blindsecp256k1"
 	"github.com/vocdoni/blind-csp/saltedkey"
+	dvotesaltedkey "go.vocdoni.io/dvote/crypto/saltedkey"
 	"go.vocdoni.io/dvote/log"
+	"go.vocdoni.io/dvote/vochain/processid"
+	"go.vocdoni.io/proto/build/go/models"
 )
+
+// deriveSalt picks V2 or legacy based on the election's census origin.
+// voteWeight is nil at every call site today (types.Message carries no
+// weight field), so V2 signs with w=1 — weighted V2 elections would silently
+// mismatch the chain until that plumbing lands.
+func deriveSalt(processID, voteWeight []byte) ([saltedkey.SaltSize]byte, error) {
+	var out [saltedkey.SaltSize]byte
+	p := processid.ProcessID{}
+	if err := p.Unmarshal(processID); err == nil &&
+		p.CensusOrigin() == models.CensusOrigin_OFF_CHAIN_CA_V2 {
+		h, err := dvotesaltedkey.Salt(processID, voteWeight)
+		if err != nil {
+			return out, err
+		}
+		copy(out[:], h)
+		return out, nil
+	}
+	// Legacy OFF_CHAIN_CA salt: raw processID truncated to SaltSize bytes.
+	if len(processID) < saltedkey.SaltSize {
+		return out, fmt.Errorf("processID too short for legacy salt: got %d, need %d",
+			len(processID), saltedkey.SaltSize)
+	}
+	copy(out[:], processID[:saltedkey.SaltSize])
+	return out, nil
+}
 
 // PubKeyBlind returns the public key of the blind CSP signer.
 // If processID is nil, returns the root public key.
@@ -17,8 +45,11 @@ func (csp *BlindCSP) PubKeyBlind(processID []byte) string {
 	if processID == nil {
 		return fmt.Sprintf("%x", csp.signer.BlindPubKey())
 	}
-	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processID[:saltedkey.SaltSize])
+	salt, err := deriveSalt(processID, nil)
+	if err != nil {
+		log.Warnw("PubKeyBlind: deriveSalt failed", "err", err, "pidLen", len(processID))
+		return ""
+	}
 	pk, err := saltedkey.SaltBlindPubKey(csp.signer.BlindPubKey(), salt)
 	if err != nil {
 		return ""
@@ -37,8 +68,11 @@ func (csp *BlindCSP) PubKeyECDSA(processID []byte) string {
 	if processID == nil {
 		return fmt.Sprintf("%x", k)
 	}
-	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processID[:saltedkey.SaltSize])
+	salt, err := deriveSalt(processID, nil)
+	if err != nil {
+		log.Warnw("PubKeyECDSA: deriveSalt failed", "err", err, "pidLen", len(processID))
+		return ""
+	}
 	pk, err := saltedkey.SaltECDSAPubKey(k, salt)
 	if err != nil {
 		return ""
@@ -91,8 +125,10 @@ func (csp *BlindCSP) SignECDSA(token, msg []byte, processID []byte) ([]byte, err
 			log.Warn(err)
 		}
 	}()
-	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processID[:saltedkey.SaltSize])
+	salt, err := deriveSalt(processID, nil)
+	if err != nil {
+		return nil, err
+	}
 	return csp.signer.SignECDSA(salt, msg)
 }
 
@@ -104,8 +140,10 @@ func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processID []byte) ([]
 	if k == nil || err != nil {
 		return nil, fmt.Errorf("unknown R point")
 	}
-	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processID[:saltedkey.SaltSize])
+	salt, err := deriveSalt(processID, nil)
+	if err != nil {
+		return nil, err
+	}
 	signature, err := csp.signer.SignBlind(salt, hash, k)
 	if err != nil {
 		return nil, err
@@ -119,8 +157,10 @@ func (csp *BlindCSP) SignBlind(signerR *blind.Point, hash, processID []byte) ([]
 // SharedKey performs a signature over processId which might be used as shared key
 // for all users belonging to the same process.
 func (csp *BlindCSP) SharedKey(processID []byte) ([]byte, error) {
-	var salt [saltedkey.SaltSize]byte
-	copy(salt[:], processID[:saltedkey.SaltSize])
+	salt, err := deriveSalt(processID, nil)
+	if err != nil {
+		return nil, err
+	}
 	return csp.signer.SignECDSA(salt, processID)
 }
 

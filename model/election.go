@@ -56,7 +56,8 @@ func (store *electionStore) CreateElection(election *Election) (*Election, error
 	// Verify if the election census belongs to the CSP
 	p := processid.ProcessID{}
 	err := p.Unmarshal(election.ID)
-	if err != nil || p.CensusOrigin() != models.CensusOrigin_OFF_CHAIN_CA {
+	if err != nil || (p.CensusOrigin() != models.CensusOrigin_OFF_CHAIN_CA &&
+		p.CensusOrigin() != models.CensusOrigin_OFF_CHAIN_CA_V2) {
 		log.Warnw("Error! Election census is not from the CSP", "electionId", election.ID, "censusOrigin", p.CensusOrigin())
 		return nil, ErrElectionInvalid
 	}
