@@ -99,7 +99,7 @@ require (
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cosmos/gogoproto v1.4.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
-	github.com/go-chi/chi/v5 v5.0.8 // indirect
+	github.com/go-chi/chi/v5 v5.2.4 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.2 // indirect
